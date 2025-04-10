@@ -1050,7 +1050,7 @@ with results_tab:
                     priority_data = {m: [sprint_priority_counts[m].get(p, 0) for p in priorities] for m in members}
                     
                     fig, ax = plt.subplots(figsize=(10, 5))
-                    bottom = np.zeros(len(members)))
+                    bottom = np.zeros(len(members))
                     
                     for i, priority in enumerate(priorities):
                         priority_counts = [priority_data[member][i] for member in members]
