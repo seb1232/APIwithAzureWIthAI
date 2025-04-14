@@ -1361,99 +1361,130 @@ with ai_tab:
 
     api_key = st.text_input("Together.ai API Key", type="password")
 
-    if not st.session_state.df_tasks is None:
-        df = st.session_state.df_tasks
+    if not st.session_state.df_tasks is None and api_key:
+        # Extract component assignments from the data
+        component_assignments = {}
+        if "Unnamed: 11" in st.session_state.df_tasks.columns:  # Column containing component info
+            component_col = "Unnamed: 11"
+        elif "Component" in st.session_state.df_tasks.columns:
+            component_col = "Component"
+        else:
+            component_col = None
+            
+        if component_col:
+            # Create a mapping of team members to their components
+            for _, row in st.session_state.df_tasks.iterrows():
+                if pd.notna(row["Assigned To"]) and pd.notna(row[component_col]):
+                    if row["Assigned To"] not in component_assignments:
+                        component_assignments[row["Assigned To"]] = set()
+                    component_assignments[row["Assigned To"]].add(row[component_col])
 
-        # ---- AI Suggestions Section ----
-        if api_key:
-            csv_string = df.to_csv(index=False)
+        # Convert DataFrame to CSV string
+        csv_string = st.session_state.df_tasks.to_csv(index=False)
 
-            prompt = f"""You are an expert sprint planner. Analyze the following task CSV data and provide:
-1. Observations about task distribution.
-2. Suggestions for optimizing the sprint plan.
-3. Red flags or inconsistencies.
-4. Ideas to improve task assignment or reduce overload.
-
-CSV data:
-{csv_string[:4000]}
+        # Prepare component-specific prompt if we have the data
+        component_prompt = ""
+        if component_assignments:
+            component_prompt = "\n\nAdditional component assignment information:\n"
+            for member, components in component_assignments.items():
+                component_prompt += f"- {member} is assigned to components: {', '.join(components)}\n"
+            
+            component_prompt += """
+Please consider these component assignments when making recommendations:
+1. Suggest if any team member is assigned tasks outside their component expertise
+2. Recommend component-specific task reassignments if needed
+3. Highlight any component knowledge gaps in the team
 """
 
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            }
+        prompt = f"""You are an expert sprint planner. Analyze the following task CSV data and provide:
+1. Observations about task distribution (e.g. too many high-priority items?)
+2. Suggestions for optimizing the sprint plan
+3. Any red flags, missing data, or inconsistencies
+4. Ideas to improve task assignment or reduce overload
+5. Component-specific recommendations based on team member expertise
+{component_prompt}
 
-            body = {
-                "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-                "messages": [
-                    {"role": "system", "content": "You are an expert in agile sprint planning."},
-                    {"role": "user", "content": prompt}
-                ]
-            }
+CSV data:
+{csv_string[:4000]}  # Limiting to 4000 chars to stay within API limits
+"""
 
-            with st.spinner("Analyzing your sprint data with AI..."):
-                response = requests.post("https://api.together.xyz/v1/chat/completions", headers=headers, json=body)
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        body = {
+            "model": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            "messages": [
+                {"role": "system", "content": "You are an expert in agile sprint planning with focus on component-based development."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1500
+        }
+
+        with st.spinner("Analyzing your sprint data with AI..."):
+            try:
+                response = requests.post(
+                    "https://api.together.xyz/v1/chat/completions",
+                    headers=headers,
+                    json=body,
+                    timeout=30
+                )
 
                 if response.status_code == 200:
                     reply = response.json()["choices"][0]["message"]["content"]
+                    
+                    # Display the AI response with better formatting
                     st.markdown("### 🤖 AI Suggestions")
-                    st.markdown(reply)
-                else:
-                    st.error(f"Error: {response.status_code} - {response.text}")
-        else:
-            st.info("Enter your Together.ai API key above to get automated suggestions.")
-
-        # ---- Natural Language Query Section ----
-        st.markdown("---")
-        st.subheader("Ask Questions About Your Tasks")
-
-        user_query = st.text_input("What do you want to know?", placeholder="e.g., How many high-priority tasks are there?")
-        if user_query:
-            import re
-
-            def answer_query(query, df):
-                q = query.lower()
-
-                if "high-priority" in q or "high priority" in q:
-                    return f"🔺 There are {len(df[df['Priority'].str.lower() == 'high'])} high-priority tasks."
-
-                elif "sprint" in q and "most tasks" in q:
-                    sprint_counts = df["Sprint"].value_counts()
-                    if not sprint_counts.empty:
-                        top = sprint_counts.idxmax()
-                        return f"📈 Sprint with most tasks: **{top}** ({sprint_counts.max()} tasks)"
+                    
+                    # Split the response into sections if it contains numbered items
+                    if "1." in reply and "2." in reply:
+                        sections = reply.split("\n\n")
+                        for section in sections:
+                            if section.strip().startswith(("1.", "2.", "3.", "4.", "5.")):
+                                st.markdown(f"#### {section.split('.')[0].strip()}.")
+                                st.markdown(section[section.find(" ")+1:])
+                            else:
+                                st.markdown(section)
                     else:
-                        return "No sprint data available."
+                        st.markdown(reply)
+                        
+                    # Add component-specific highlights if we have that data
+                    if component_assignments:
+                        st.markdown("### 🔍 Component-Specific Highlights")
+                        
+                        # Check for potential component mismatches
+                        if "Assigned To" in st.session_state.df_tasks.columns and component_col:
+                            mismatches = []
+                            for _, row in st.session_state.df_tasks.iterrows():
+                                if (pd.notna(row["Assigned To"]) and pd.notna(row[component_col]) and 
+                                   row["Assigned To"] in component_assignments and 
+                                   row[component_col] not in component_assignments[row["Assigned To"]]):
+                                    mismatches.append(
+                                        f"⚠️ {row['Assigned To']} is assigned to {row[component_col]} task "
+                                        f"(ID: {row['ID']}) but previously worked on {', '.join(component_assignments[row['Assigned To']])}"
+                                    )
+                            
+                            if mismatches:
+                                st.warning("Potential component mismatches detected:")
+                                for msg in mismatches:
+                                    st.markdown(f"- {msg}")
+                            else:
+                                st.success("No component assignment mismatches detected")
+                                
+                else:
+                    st.error(f"API Error: {response.status_code} - {response.text}")
 
-                elif "assigned to" in q:
-                    name_match = re.search(r"assigned to ([a-zA-Z ]+)", q)
-                    if name_match:
-                        name = name_match.group(1).strip().title()
-                        user_tasks = df[df["Assigned To"].str.lower() == name.lower()]
-                        if not user_tasks.empty:
-                            return user_tasks[["ID", "Title", "Priority", "Sprint"]].to_markdown(index=False)
-                        else:
-                            return f"No tasks found assigned to {name}."
-                
-                elif "task count" in q or "number of tasks" in q:
-                    return f"📊 Total number of tasks: {len(df)}"
+            except requests.exceptions.RequestException as e:
+                st.error(f"Request failed: {str(e)}")
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
 
-                elif "priority" in q and "breakdown" in q:
-                    counts = df["Priority"].value_counts()
-                    return "\n".join([f"{k}: {v}" for k, v in counts.items()])
-
-                return "❓ Sorry, I couldn't understand the query. Try asking about high-priority tasks, sprint loads, or task assignments."
-
-            # Show response
-            st.markdown("### 📢 Answer")
-            response = answer_query(user_query, df)
-            if isinstance(response, str):
-                st.markdown(response)
-            else:
-                st.dataframe(response)
-
+    elif not api_key:
+        st.warning("Please enter your Together.ai API key above.")
     else:
-        st.info("Upload task data first to ask questions or generate insights.")
+        st.info("Upload task data to generate AI suggestions.")
 
 
 
