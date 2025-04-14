@@ -1359,7 +1359,7 @@ with ai_tab:
     st.header("AI Suggestions and Insights")
     st.markdown("Powered by Together.ai")
 
-    api_key = st.text_input("Together.ai API Key", type="5e43fbc4e1a4cb42fb4ea182a49ab2fd180e61d212f3f0de4a7f683a5eb45936")
+    api_key = st.text_input("Together.ai API Key", type="password")
 
     if not st.session_state.df_tasks is None and api_key:
         # Convert DataFrame to CSV string
