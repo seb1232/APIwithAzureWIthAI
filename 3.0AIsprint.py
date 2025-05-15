@@ -2514,8 +2514,8 @@ if st.sidebar.button("📊 Retrospective Analysis", key="nav_retro", use_contain
     st.session_state.current_app = "retro_analysis"
     st.rerun()
 if st.sidebar.button("💡Expertise Based Assignment", key="nav_smart", use_container_width=True,
-                    type="primary" if st.session_state.current_app == "retro_analysis" else "secondary"):
-    st.session_state.current_app = "smart_task_assignment"
+                    type="primary" if st.session_state.current_app == "smart_task_assignment" else "secondary"):
+    st.session_state.current_app = "expertise"
     st.rerun()
 
 # Render the selected app
