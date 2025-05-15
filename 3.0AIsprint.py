@@ -2513,7 +2513,7 @@ if st.sidebar.button("📊 Retrospective Analysis", key="nav_retro", use_contain
                     type="primary" if st.session_state.current_app == "retro_analysis" else "secondary"):
     st.session_state.current_app = "retro_analysis"
     st.rerun()
-if st.sidebar.button("📊Expertise Based Assignment", key="nav_retro", use_container_width=True,
+if st.sidebar.button("💡Expertise Based Assignment", key="nav_smart", use_container_width=True,
                     type="primary" if st.session_state.current_app == "retro_analysis" else "secondary"):
     st.session_state.current_app = "smart_task_assignment"
     st.rerun()
