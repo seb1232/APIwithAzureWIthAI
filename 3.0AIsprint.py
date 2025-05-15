@@ -1424,7 +1424,6 @@ def render_sprint_task_planner():
                     ),
                     "Original Estimates": st.column_config.NumberColumn(
                         "Hours",
-```text
                         help="Estimated work hours",
                         format="%.1f",
                     ),
