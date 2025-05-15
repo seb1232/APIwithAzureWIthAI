@@ -768,9 +768,8 @@ def render_home():
     <div class="apple-card" style='background-color: rgba(130, 133, 48, 0.7); padding: 30px; border-radius: 20px; margin: 40px 0 30px 0; backdrop-filter: blur(15px); animation: fadeInUp 0.8s ease-out;'>
         <h2 style="margin-bottom: 20px; font-size: 28px; font-weight: 500;">All-in-One Tool for Agile Teams</h2>
         <p style="margin-bottom: 20px; font-size: 18px; line-height: 1.6;">This integrated application provides comprehensive tools for managing agile projects with a beautiful, intuitive interface:</p>
-        <ul class="staggered-fade" style="padding-left: 20px;">
-            <li style="```python
-margin-bottom: 12px; font-size: 16px;"><strong>Sprint Task Planning:</strong> Optimize task assignment across sprints and team members</li>
+        <ul class="staggered-fade" style="padding-left: 20px;">```text
+            <li style="margin-bottom: 12px; font-size: 16px;"><strong>Sprint Task Planning:</strong> Optimize task assignment across sprints and team members</li>
             <li style="margin-bottom: 12px; font-size: 16px;"><strong>Retrospective Analysis:</strong> Analyze feedback from multiple retrospectives</li>
             <li style="margin-bottom: 12px; font-size: 16px;"><strong>Seamless Integration:</strong> Connect with Azure DevOps and other tools</li>
         </ul>
@@ -1425,6 +1424,7 @@ def render_sprint_task_planner():
                     ),
                     "Original Estimates": st.column_config.NumberColumn(
                         "Hours",
+```text
                         help="Estimated work hours",
                         format="%.1f",
                     ),
@@ -2105,8 +2105,40 @@ def render_retrospective_analysis():
         <p style="color: white; font-size: 18px; text-align: center; animation: fadeInUp 1s 0.5s forwards; opacity: 0; line-height: 1.6;">
         A Tool for Analysis of feedback from Team Retrospectives   
         </p>
-    </div>
-    """, unsafe_allow_htmlType,Description,Votes
+    </div>""", unsafe_allow_html=True)
+    st.markdown("Upload multiple retrospective CSV files to analyze and compare feedback across team retrospectives.")
+    
+    # Sidebar for file upload and filtering controls
+    with st.sidebar:
+        st.header("Controls")
+        
+        uploaded_files = st.file_uploader(
+            "Upload Retrospective CSV Files",
+            type=["csv"],
+            accept_multiple_files=True,
+            help="Upload one or more CSV files containing retrospective data",
+            key="retro_upload"
+        )
+        
+        st.subheader("Filter Settings")
+        min_votes = st.slider("Minimum Votes", 0, 100, 1, key="retro_min_votes")
+        max_votes = st.slider("Maximum Votes", min_votes, 100, 50, key="retro_max_votes")
+        
+        if uploaded_files:
+            st.info(f"Selected {len(uploaded_files)} file(s)")
+        else:
+            st.warning("Please upload at least one CSV file")
+    
+    # Main content area
+    if not uploaded_files:
+        st.info("👈 Please upload retrospective CSV files using the sidebar to begin analysis")
+        
+        # Show example of expected format
+        st.subheader("Expected CSV Format")
+        st.markdown(""" 
+        Your CSV files should include columns for feedback description and votes, with format like:
+        ```
+        Type,Description,Votes
         Went Well,The team was collaborative,5
         Needs Improvement,Documentation is lacking,3
         ```
@@ -2115,412 +2147,3 @@ def render_retrospective_analysis():
         ```
         Feedback Description,Work Item Title,Work Item Type,Work Item Id,
         Documentation is lacking,Improve Docs,Task,12345
-        ```
-        """)
-        
-    else:
-        # Process the uploaded files when the analyze button is clicked
-        analyze_button = st.button("Analyze Retrospectives", type="primary")
-        
-        if analyze_button:
-            with st.spinner("Processing retrospective data..."):
-                feedback_results, processing_logs = compare_retrospectives(
-                    uploaded_files, min_votes, max_votes
-                )
-                
-                # Save results to session state for later use in the AI assistant
-                st.session_state.retro_feedback = feedback_results
-                
-                # Show processing results
-                with st.expander("Processing Logs", expanded=True):
-                    for log in processing_logs:
-                        st.write(log)
-                
-                # Convert to DataFrame for easier handling
-                results_df = create_dataframe_from_results(feedback_results)
-                
-                if len(results_df) == 0 or (len(results_df) == 1 and "No valid feedback found" in results_df["Feedback"].iloc[0]):
-                    st.error("No feedback items found within the selected vote range. Try adjusting your filters.")
-                else:
-                    # Display the results
-                    st.subheader(f"Consolidated Feedback ({len(results_df)} items)")
-                    st.dataframe(
-                        results_df,
-                        column_config={
-                            "Feedback": st.column_config.TextColumn("Feedback"),
-                            "Task ID": st.column_config.TextColumn("Task ID"),
-                            "Votes": st.column_config.NumberColumn("Votes")
-                        },
-                        use_container_width=True
-                    )
-                    
-                    # Visualization section
-                    st.subheader("Feedback Visualization")
-                    
-                    # Only show top 15 items in chart to avoid overcrowding
-                    chart_data = results_df.head(15) if len(results_df) > 15 else results_df
-                    
-                    # Create a horizontal bar chart with Plotly
-                    fig = px.bar(
-                        chart_data,
-                        x="Votes",
-                        y="Feedback",
-                        orientation='h',
-                        title=f"Top Feedback Items by Vote Count (min: {min_votes}, max: {max_votes})",
-                        color="Votes",
-                        color_continuous_scale="Viridis"
-                    )
-                    fig.update_layout(yaxis={'categoryorder':'total ascending'})
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Distribution of votes
-                    st.subheader("Vote Distribution")
-                    vote_distribution = px.histogram(
-                        results_df, 
-                        x="Votes",
-                        nbins=20,
-                        title="Distribution of Votes",
-                        labels={"Votes": "Vote Count", "count": "Number of Feedback Items"}
-                    )
-                    st.plotly_chart(vote_distribution, use_container_width=True)
-                    
-                    # Count items with and without associated tasks
-                    with_tasks = results_df["Task ID"].apply(lambda x: x != "None").sum()
-                    without_tasks = len(results_df) - with_tasks
-                    
-                    # Create pie chart for task association
-                    fig3, ax3 = plt.subplots(figsize=(8, 5))
-                    ax3.pie(
-                        [with_tasks, without_tasks],
-                        labels=["With Task ID", "Without Task ID"],
-                        autopct='%1.1f%%',
-                        startangle=90,
-                        colors=['#4CAF50', '#FF9800']
-                    )
-                    ax3.set_title("Feedback Items With Task Association")
-                    ax3.axis('equal')
-                    st.pyplot(fig3)
-                    
-                    # Export options
-                    st.subheader("Export Results")
-                    export_format = st.radio("Select export format:", ["CSV", "Markdown"])
-                    
-                    if export_format == "CSV":
-                        csv = results_df.to_csv(index=False)
-                        st.download_button(
-                            label="Download CSV",
-                            data=csv,
-                            file_name="retrospective_analysis.csv",
-                            mime="text/csv"
-                        )
-                    else:  # Markdown
-                        # Generate markdown content
-                        markdown_content = "# Retrospective Analysis Results\n\n"
-                        markdown_content += f"Filter settings: Min Votes = {min_votes}, Max Votes = {max_votes}\n\n"
-                        markdown_content += "| Feedback | Task ID | Votes |\n| --- | --- | --- |\n"
-                        for _, row in results_df.iterrows():
-                            markdown_content += f"| {row['Feedback']} | {row['Task ID']} | {row['Votes']} |\n"
-                        
-                        st.download_button(
-                            label="Download Markdown",
-                            data=markdown_content,
-                            file_name="retrospective_analysis.md",
-                            mime="text/markdown"
-                        )
-    
-    # AI SUGGESTIONS TAB
-    ai_tab = st.tabs(["AI Suggestions"])[0]
-    with ai_tab:
-        st.header("AI Suggestions & Insights")
-        st.markdown("Powered by OpenRouter + OpenAI")
-
-        if "ai_messages" not in st.session_state:
-            st.session_state.ai_messages = [
-                {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
-            ]
-
-        for msg in st.session_state.ai_messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
-
-        if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
-            st.info("Analyze retrospectives first in the previous tab.")
-            st.stop()
-
-        df = create_dataframe_from_results(st.session_state.retro_feedback)
-
-        # Build context from feedback
-        context = "You are a helpful assistant summarizing retrospective feedback:\\n"
-        for _, row in df.iterrows():
-            task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
-            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\\n"
-
-        prompt = st.chat_input("Ask me anything about this retrospective...")
-
-        if prompt:
-            st.session_state.ai_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            with st.chat_message("assistant"):
-                msg_placeholder = st.empty()
-                full_response = ""
-
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "HTTP-Referer": "https://localhost",
-                    "Content-Type": "application/json"
-                }
-
-                body = {
-                    "model": "openai/gpt-3.5-turbo",
-                    "messages": [{"role": "system", "content": context}] +
-                                [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
-                    "temperature": 0.7,
-                    "max_tokens": 1500,
-                    "stream": True
-                }
-
-                try:
-                    with requests.post("https://openrouter.ai/api/v1/chat/completions",
-                                    headers=headers, json=body, stream=True) as response:
-                        if response.status_code == 200:
-                            for chunk in response.iter_lines():
-                                if chunk:
-                                    chunk_str = chunk.decode("utf-8")
-                                    if chunk_str.startswith("data:") and chunk_str.strip() != "data: [DONE]":
-                                        try:
-                                            data = json.loads(chunk_str[5:])
-                                            delta = data["choices"][0].get("delta", {})
-                                            if "content" in delta:
-                                                full_response += delta["content"]
-                                                msg_placeholder.markdown(full_response + "▌")
-                                        except json.JSONDecodeError:
-                                            continue  # Skip invalid chunk
-                        else:
-                            full_response = f"Error: {response.status_code} - {response.text}"
-                except Exception as e:
-                    full_response = f"Error: {e}"
-
-                msg_placeholder.markdown(full_response)
-                st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
-def smart_task_assignment():
-    st.markdown("<div class='animated-header'><h2>Smart Task Assignment</h2></div>", unsafe_allow_html=True)
-    
-    # Developer expertise management section
-    st.subheader("Developer Expertise Management")
-    
-    # Initialize developer expertise in session state if not exists
-    if "developer_expertise" not in st.session_state:
-        st.session_state.developer_expertise = {}
-    
-    # Add developer form
-    with st.expander("Add Developer Expertise", expanded=True):
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            dev_name = st.text_input("Developer Name")
-        with col2:
-            expertise = st.text_input("Expertise Keywords (comma separated)", 
-                                     help="Enter keywords related to components, categories, domains that this developer specializes in")
-        
-        if st.button("Add Developer"):
-            if dev_name and expertise:
-                # Store in session state
-                st.session_state.developer_expertise[dev_name] = [keyword.strip().lower() for keyword in expertise.split(",")]
-                st.success(f"Developer {dev_name} added with expertise: {expertise}")
-    
-    # Display current developers
-    if st.session_state.developer_expertise:
-        st.subheader("Current Developer Expertise")
-        dev_df = pd.DataFrame({
-            "Developer": list(st.session_state.developer_expertise.keys()),
-            "Expertise": [", ".join(exp) for exp in st.session_state.developer_expertise.values()]
-        })
-        st.dataframe(dev_df)
-        
-        if st.button("Clear All Developers"):
-            st.session_state.developer_expertise = {}
-            st.success("All developers cleared")
-    
-    # Task assignment section
-    st.subheader("Task Assignment")
-    
-    # Load tasks
-    task_source = st.radio("Task Source", ["Upload CSV", "Use Current Tasks", "Use Azure DevOps Tasks"])
-    
-    df_tasks = None
-    
-    if task_source == "Upload CSV":
-        uploaded_file = st.file_uploader("Upload task CSV file", type=["csv"])
-        if uploaded_file is not None:
-            df_tasks = pd.read_csv(uploaded_file)
-            st.success("Tasks loaded successfully")
-    elif task_source == "Use Current Tasks" and st.session_state.df_tasks is not None:
-        df_tasks = st.session_state.df_tasks.copy()
-        st.success("Using current tasks from session")
-    elif task_source == "Use Azure DevOps Tasks" and st.session_state.azure_config["connected"]:
-        # Implement Azure DevOps integration here
-        st.info("Azure DevOps integration would load tasks here")
-    
-    if df_tasks is not None:
-        # Display tasks
-        st.write("Unassigned Tasks:")
-        
-        # Filter for unassigned tasks (assuming 'Assigned To' is the column name)
-        unassigned_mask = df_tasks["Assigned To"].isna() | (df_tasks["Assigned To"] == "")
-        unassigned_tasks = df_tasks[unassigned_mask]
-        
-        if len(unassigned_tasks) == 0:
-            st.info("No unassigned tasks found")
-        else:
-            st.dataframe(unassigned_tasks)
-            
-            if len(st.session_state.developer_expertise) > 0:
-                col1, col2 = st.columns(2)
-            with col1:
-                num_sprints = st.number_input("Number of Sprints", min_value=1, max_value=12, value=3)
-            with col2:
-                hours_per_sprint = st.number_input("Hours per Sprint", min_value=1, max_value=160, value=80)
-
-            if st.button("Assign Tasks to Developers"):
-                # Apply the optimized assignment algorithm
-                assigned_tasks = assign_tasks_to_developers(
-                    unassigned_tasks,
-                    st.session_state.developer_expertise,
-                    sprints=num_sprints,
-                    hours_per_sprint=hours_per_sprint
-                )
-
-                # Update the dataframe with assignments
-                for idx, (dev, sprint) in assigned_tasks.items():
-                    df_tasks.loc[idx, "Assigned To"] = dev
-                    df_tasks.loc[idx, "Sprint"] = f"Sprint {sprint}"
-
-                    # Store the updated dataframe back to session state
-                    if task_source == "Use Current Tasks":
-                        st.session_state.df_tasks = df_tasks
-                    
-                    # Display results
-                    st.success(f"Successfully assigned {len(assigned_tasks)} tasks")
-                    st.write("Assigned Tasks:")
-                    st.dataframe(df_tasks[df_tasks.index.isin(assigned_tasks.keys())])
-                    
-                    # Provide download option
-                    st.markdown(get_download_link(df_tasks, "assigned_tasks.xlsx", "excel"), unsafe_allow_html=True)
-            else:
-                st.warning("Please add developers with expertise before assigning tasks")
-
-def assign_tasks_to_developers(tasks_df, developer_expertise, sprints=3, hours_per_sprint=80):
-    """
-    Optimized task assignment considering expertise, hours, sprints and fair distribution
-
-    Parameters:
-    tasks_df (DataFrame): DataFrame containing tasks
-    developer_expertise (dict): Dictionary mapping developer names to their expertise keywords
-    sprints (int): Number of sprints to distribute tasks across
-    hours_per_sprint (int): Available hours per sprint per developer
-
-    Returns:
-    dict: Dictionary mapping task indices to (developer_name, sprint_number) tuples
-    """
-    assignments = {}
-
-    # Initialize developer capacity tracking
-    dev_capacity = {
-        dev: {sprint: hours_per_sprint for sprint in range(1, sprints + 1)}
-        for dev in developer_expertise.keys()
-    }
-
-    # Initialize priority and expertise scores for each task-developer pair
-    task_scores = []
-
-    for idx, task in tasks_df.iterrows():
-        task_text = " ".join([
-            str(task.get(field, "")).lower()
-            for field in ["Title", "Category", "Product Release"]
-            if field in task and not pd.isna(task.get(field))
-        ])
-
-        task_hours = float(task.get("Original Estimates", 0))
-        task_priority = task.get("Priority", "Medium")
-        priority_score = {"High": 3, "Medium": 2, "Low": 1}.get(task_priority, 1)
-
-        for dev_name, expertise_keywords in developer_expertise.items():
-            # Calculate expertise match score
-            expertise_score = sum(keyword in task_text for keyword in expertise_keywords)
-            if len(expertise_keywords) > 0:
-                expertise_score /= len(expertise_keywords)
-
-            # Calculate combined score considering both expertise and priority
-            combined_score = (expertise_score * 0.7) + (priority_score / 3 * 0.3)
-
-            if combined_score > 0:
-                task_scores.append({
-                    'task_idx': idx,
-                    'developer': dev_name,
-                    'score': combined_score,
-                    'hours': task_hours
-                })
-
-    # Sort task scores by combined score (highest first)
-    task_scores.sort(key=lambda x: x['score'], reverse=True)
-
-    # Assign tasks considering sprint capacity
-    for task in task_scores:
-        task_idx = task['task_idx']
-        if task_idx in assignments:
-            continue
-
-        dev_name = task['developer']
-        task_hours = task['hours']
-
-        # Find the best sprint with available capacity
-        best_sprint = None
-        max_available = 0
-
-        for sprint, capacity in dev_capacity[dev_name].items():
-            if capacity >= task_hours and capacity > max_available:
-                best_sprint = sprint
-                max_available = capacity
-
-        if best_sprint is not None:
-            assignments[task_idx] = (dev_name, best_sprint)
-            dev_capacity[dev_name][best_sprint] -= task_hours
-
-    return assignments
-#Main Navigation
-st.sidebar.title("Navigation")
-
-# Add navigation options with simple buttons
-st.sidebar.markdown("### Choose a section:")
-
-if st.sidebar.button("🏠 Home", key="nav_home", use_container_width=True, 
-                     type="primary" if st.session_state.current_app == "home" else "secondary"):
-    st.session_state.current_app = "home"
-    st.rerun()
-
-if st.sidebar.button("📝 Sprint Task Planner", key="nav_sprint", use_container_width=True,
-                    type="primary" if st.session_state.current_app == "sprint_planner" else "secondary"):
-    st.session_state.current_app = "sprint_planner"
-    st.rerun()
-
-if st.sidebar.button("📊 Retrospective Analysis", key="nav_retro", use_container_width=True,
-                    type="primary" if st.session_state.current_app == "retro_analysis" else "secondary"):
-    st.session_state.current_app = "retro_analysis"
-    st.rerun()
-if st.sidebar.button("💡Expertise Based Assignment", key="nav_smart", use_container_width=True,
-                    type="primary" if st.session_state.current_app == "smart_task_assignment" else "secondary"):
-    st.session_state.current_app = "expertise"
-    st.rerun()
-
-# Render the selected app
-if st.session_state.current_app == "home":
-    render_home()
-elif st.session_state.current_app == "sprint_planner":
-    render_sprint_task_planner()
-elif st.session_state.current_app == "retro_analysis":
-    render_retrospective_analysis()
-elif st.session_state.current_app == "expertise":
-    smart_task_assignment()
