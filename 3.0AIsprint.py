@@ -769,7 +769,8 @@ def render_home():
         <h2 style="margin-bottom: 20px; font-size: 28px; font-weight: 500;">All-in-One Tool for Agile Teams</h2>
         <p style="margin-bottom: 20px; font-size: 18px; line-height: 1.6;">This integrated application provides comprehensive tools for managing agile projects with a beautiful, intuitive interface:</p>
         <ul class="staggered-fade" style="padding-left: 20px;">
-            <li style="margin-bottom: 12px; font-size: 16px;"><strong>Sprint Task Planning:</strong> Optimize task assignment across sprints and team members</li>
+            <li style="```python
+margin-bottom: 12px; font-size: 16px;"><strong>Sprint Task Planning:</strong> Optimize task assignment across sprints and team members</li>
             <li style="margin-bottom: 12px; font-size: 16px;"><strong>Retrospective Analysis:</strong> Analyze feedback from multiple retrospectives</li>
             <li style="margin-bottom: 12px; font-size: 16px;"><strong>Seamless Integration:</strong> Connect with Azure DevOps and other tools</li>
         </ul>
@@ -2105,40 +2106,7 @@ def render_retrospective_analysis():
         A Tool for Analysis of feedback from Team Retrospectives   
         </p>
     </div>
-    """, unsafe_allow_html=True)
-    st.markdown("Upload multiple retrospective CSV files to analyze and compare feedback across team retrospectives.")
-    
-    # Sidebar for file upload and filtering controls
-    with st.sidebar:
-        st.header("Controls")
-        
-        uploaded_files = st.file_uploader(
-            "Upload Retrospective CSV Files",
-            type=["csv"],
-            accept_multiple_files=True,
-            help="Upload one or more CSV files containing retrospective data",
-            key="retro_upload"
-        )
-        
-        st.subheader("Filter Settings")
-        min_votes = st.slider("Minimum Votes", 0, 100, 1, key="retro_min_votes")
-        max_votes = st.slider("Maximum Votes", min_votes, 100, 50, key="retro_max_votes")
-        
-        if uploaded_files:
-            st.info(f"Selected {len(uploaded_files)} file(s)")
-        else:
-            st.warning("Please upload at least one CSV file")
-    
-    # Main content area
-    if not uploaded_files:
-        st.info("👈 Please upload retrospective CSV files using the sidebar to begin analysis")
-        
-        # Show example of expected format
-        st.subheader("Expected CSV Format")
-        st.markdown(""" 
-        Your CSV files should include columns for feedback description and votes, with format like:
-        ```
-        Type,Description,Votes
+    """, unsafe_allow_htmlType,Description,Votes
         Went Well,The team was collaborative,5
         Needs Improvement,Documentation is lacking,3
         ```
@@ -2410,17 +2378,26 @@ def smart_task_assignment():
             st.dataframe(unassigned_tasks)
             
             if len(st.session_state.developer_expertise) > 0:
-                if st.button("Assign Tasks to Developers"):
-                    # Apply the assignment algorithm
-                    assigned_tasks = assign_tasks_to_developers(
-                        unassigned_tasks, 
-                        st.session_state.developer_expertise
-                    )
-                    
-                    # Update the dataframe with assignments
-                    for idx, dev in assigned_tasks.items():
-                        df_tasks.loc[idx, "Assigned To"] = dev
-                    
+                col1, col2 = st.columns(2)
+            with col1:
+                num_sprints = st.number_input("Number of Sprints", min_value=1, max_value=12, value=3)
+            with col2:
+                hours_per_sprint = st.number_input("Hours per Sprint", min_value=1, max_value=160, value=80)
+
+            if st.button("Assign Tasks to Developers"):
+                # Apply the optimized assignment algorithm
+                assigned_tasks = assign_tasks_to_developers(
+                    unassigned_tasks,
+                    st.session_state.developer_expertise,
+                    sprints=num_sprints,
+                    hours_per_sprint=hours_per_sprint
+                )
+
+                # Update the dataframe with assignments
+                for idx, (dev, sprint) in assigned_tasks.items():
+                    df_tasks.loc[idx, "Assigned To"] = dev
+                    df_tasks.loc[idx, "Sprint"] = f"Sprint {sprint}"
+
                     # Store the updated dataframe back to session state
                     if task_source == "Use Current Tasks":
                         st.session_state.df_tasks = df_tasks
@@ -2435,63 +2412,83 @@ def smart_task_assignment():
             else:
                 st.warning("Please add developers with expertise before assigning tasks")
 
-def assign_tasks_to_developers(tasks_df, developer_expertise):
+def assign_tasks_to_developers(tasks_df, developer_expertise, sprints=3, hours_per_sprint=80):
     """
-    Assign tasks to developers based on keyword matching
-    
+    Optimized task assignment considering expertise, hours, sprints and fair distribution
+
     Parameters:
     tasks_df (DataFrame): DataFrame containing tasks
     developer_expertise (dict): Dictionary mapping developer names to their expertise keywords
-    
+    sprints (int): Number of sprints to distribute tasks across
+    hours_per_sprint (int): Available hours per sprint per developer
+
     Returns:
-    dict: Dictionary mapping task indices to assigned developer names
+    dict: Dictionary mapping task indices to (developer_name, sprint_number) tuples
     """
     assignments = {}
-    
-    # For each unassigned task
+
+    # Initialize developer capacity tracking
+    dev_capacity = {
+        dev: {sprint: hours_per_sprint for sprint in range(1, sprints + 1)}
+        for dev in developer_expertise.keys()
+    }
+
+    # Initialize priority and expertise scores for each task-developer pair
+    task_scores = []
+
     for idx, task in tasks_df.iterrows():
-        best_match = None
-        best_score = 0
-        
-        # Create a combined text from relevant fields for matching
-        task_text = ""
-        
-        # Add Title if exists
-        if "Title" in task and not pd.isna(task["Title"]):
-            task_text += " " + str(task["Title"]).lower()
-            
-        # Add Category if exists
-        if "Category" in task and not pd.isna(task["Category"]):
-            task_text += " " + str(task["Category"]).lower()
-            
-        # Add Product Release if exists
-        if "Product Release" in task and not pd.isna(task["Product Release"]):
-            task_text += " " + str(task["Product Release"]).lower()
-        
-        # Add any other relevant fields here
-        
-        # For each developer, calculate match score
+        task_text = " ".join([
+            str(task.get(field, "")).lower()
+            for field in ["Title", "Category", "Product Release"]
+            if field in task and not pd.isna(task.get(field))
+        ])
+
+        task_hours = float(task.get("Original Estimates", 0))
+        task_priority = task.get("Priority", "Medium")
+        priority_score = {"High": 3, "Medium": 2, "Low": 1}.get(task_priority, 1)
+
         for dev_name, expertise_keywords in developer_expertise.items():
-            score = 0
-            
-            # Count how many expertise keywords match the task text
-            for keyword in expertise_keywords:
-                if keyword in task_text:
-                    score += 1
-            
-            # Normalize by the number of keywords to avoid bias toward developers with more keywords
+            # Calculate expertise match score
+            expertise_score = sum(keyword in task_text for keyword in expertise_keywords)
             if len(expertise_keywords) > 0:
-                score = score / len(expertise_keywords)
-            
-            # If this developer is a better match, update
-            if score > best_score:
-                best_score = score
-                best_match = dev_name
-        
-        # If we found a match, assign the task
-        if best_match is not None and best_score > 0:
-            assignments[idx] = best_match
-    
+                expertise_score /= len(expertise_keywords)
+
+            # Calculate combined score considering both expertise and priority
+            combined_score = (expertise_score * 0.7) + (priority_score / 3 * 0.3)
+
+            if combined_score > 0:
+                task_scores.append({
+                    'task_idx': idx,
+                    'developer': dev_name,
+                    'score': combined_score,
+                    'hours': task_hours
+                })
+
+    # Sort task scores by combined score (highest first)
+    task_scores.sort(key=lambda x: x['score'], reverse=True)
+
+    # Assign tasks considering sprint capacity
+    for task in task_scores:
+        task_idx = task['task_idx']
+        if task_idx in assignments:
+            continue
+
+        dev_name = task['developer']
+        task_hours = task['hours']
+
+        # Find the best sprint with available capacity
+        best_sprint = None
+        max_available = 0
+
+        for sprint, capacity in dev_capacity[dev_name].items():
+            if capacity >= task_hours and capacity > max_available:
+                best_sprint = sprint
+                max_available = capacity
+
+        if best_sprint is not None:
+            assignments[task_idx] = (dev_name, best_sprint)
+            dev_capacity[dev_name][best_sprint] -= task_hours
+
     return assignments
 #Main Navigation
 st.sidebar.title("Navigation")
