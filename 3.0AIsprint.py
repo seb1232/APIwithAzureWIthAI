@@ -2525,5 +2525,5 @@ elif st.session_state.current_app == "sprint_planner":
     render_sprint_task_planner()
 elif st.session_state.current_app == "retro_analysis":
     render_retrospective_analysis()
-elif st.session_state.current_app == "smart_assignment":
+elif st.session_state.current_app == "expertise":
     smart_task_assignment()
