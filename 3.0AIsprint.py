@@ -2458,90 +2458,52 @@ def smart_task_assignment():
 def assign_tasks_to_developers(tasks_df, developer_expertise):
     """
     Assign tasks to developers based on keyword matching and available hours
-
-    Parameters:
-    tasks_df (DataFrame): DataFrame containing tasks
-    developer_expertise (dict): Dictionary mapping developer names to their expertise keywords
-
-    Returns:
-    dict: Dictionary mapping task indices to assigned developer names
     """
     assignments = {}
-    # Copy available hours to track remaining capacity
     remaining_hours = st.session_state.developer_hours.copy()
 
     # For each unassigned task
     for idx, task in tasks_df.iterrows():
-        # Store all potential matches with their scores
-        potential_matches = []
-
-        # Create a combined text from relevant fields for matching
         task_text = ""
-
         # Add Title if exists
         if "Title" in task and not pd.isna(task["Title"]):
             task_text += " " + str(task["Title"]).lower()
-
-        # Add Category if exists
+        # Add Category if exists  
         if "Category" in task and not pd.isna(task["Category"]):
             task_text += " " + str(task["Category"]).lower()
 
-        # Add Product Release if exists
-        if "Product Release" in task and not pd.isna(task["Product Release"]):
-            task_text += " " + str(task["Product Release"]).lower()
+        # Get task hours
+        task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
 
-        # Calculate match scores for all developers
-        for dev_name, expertise_keywords in developer_expertise.items():
-            score = 0
-            matches = 0
-            total_keywords = len(expertise_keywords)
-
-            # Count matches and calculate weighted score
-            for keyword in expertise_keywords:
-                if keyword in task_text:
-                    matches += 1
-                    # Give higher weight to longer keyword matches
-                    score += len(keyword)
-
-            # Calculate final score considering:
-            # 1. Number of matching keywords
-            # 2. Length of matching keywords
-            # 3. Available capacity
-            if total_keywords > 0:
-                keyword_match_ratio = matches / total_keywords
-                capacity_ratio = remaining_hours[dev_name] / st.session_state.developer_hours[dev_name]
-                final_score = keyword_match_ratio * score * capacity_ratio
-
-                if final_score > 0:
-                    potential_matches.append((dev_name, final_score))
-
-        # Sort potential matches by score (highest first)
-        potential_matches.sort(key=lambda x: x[1], reverse=True)
-
-        # Select the best match with available capacity
+        # Find best match
         best_match = None
-        task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
-
-        for dev_name, score in potential_matches:
-            if remaining_hours[dev_name] >= task_hours:
-                best_match = dev_name
-                break
-
-        # Check task hours
-        task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
+        best_score = 0
         
-        # If we found a match and developer has enough hours, assign the task
-        if best_match is not None and task_hours > 0 and remaining_hours[best_match] >= task_hours:
+        for dev_name, expertise_keywords in developer_expertise.items():
+            # Skip if developer doesn't have enough hours
+            if remaining_hours[dev_name] < task_hours:
+                continue
+                
+            # Calculate match score
+            score = 0
+            for keyword in expertise_keywords:
+                if keyword.lower() in task_text:
+                    score += 1
+                    
+            # Update best match if better score found
+            if score > best_score:
+                best_match = dev_name
+                best_score = score
+
+        # Assign task if match found
+        if best_match is not None:
             assignments[idx] = best_match
             remaining_hours[best_match] -= task_hours
             
-            # Add sprint assignment based on hours
-            sprint_number = 1 + len([x for x in assignments.values() if x == best_match]) // 5  # New sprint every 5 tasks
-            # Update the DataFrame directly
+            # Update DataFrame
             tasks_df.loc[idx, "Assigned To"] = best_match
+            sprint_number = 1 + len([x for x in assignments.values() if x == best_match]) // 5
             tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
-            # Store in assignments dictionary
-            assignments[idx] = best_match
 
     return assignments
 #Main Navigation
