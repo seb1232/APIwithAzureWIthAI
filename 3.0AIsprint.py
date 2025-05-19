@@ -805,47 +805,6 @@ def process_ai_message(prompt, retro_feedback, api_key):
 # =========== APPLICATION PAGES ===========
 
 
-
-
-def analyze_sprint_results_with_ai(df_results, api_key, model="anthropic/claude-2"):
-    """Use OpenRouter AI to analyze sprint assignment results and provide suggestions."""    
-    if df_results is None or df_results.empty:
-        return "No sprint results available for analysis."
-
-    context = "You are an Agile sprint planning assistant. Analyze the following task assignments:\n"
-    preview_df = df_results[["ID", "Title", "Assigned To", "Sprint", "Priority", "Original Estimates"]].head(20)
-
-    for _, row in preview_df.iterrows():
-        context += (
-            f"- Task '{row['Title']}' (ID {row['ID']}) with priority {row['Priority']} "
-            f"was assigned to {row['Assigned To']} in {row['Sprint']} (Estimate: {row['Original Estimates']}h)\n"
-        )
-
-    prompt = "Analyze this sprint task distribution. Suggest improvements for fairness, capacity utilization, or task priority balancing."
-
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": context},
-            {"role": "user", "content": prompt}
-        ]
-    }
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-
-    try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
-        else:
-            return f"Error: {response.status_code} - {response.text}"
-    except Exception as e:
-        return f"An error occurred: {str(e)}"
-
-
 def render_home():
     st.markdown("""
     <style>
@@ -1857,24 +1816,7 @@ def render_sprint_task_planner():
             """,
                         unsafe_allow_html=True)
 
-            
-            # AI Analysis Section
-            st.markdown("### 🤖 AI Suggestions for Improvement")
-
-            with st.expander("🔍 Click to Analyze Task Assignment with AI"):
-                api_key = st.text_input("Enter your OpenRouter API key", type="password")
-
-                if api_key:
-                    if st.button("Analyze Sprint Assignment with AI", use_container_width=True):
-                        with st.spinner("Sending data to AI..."):
-                            ai_feedback = analyze_sprint_results_with_ai(df, api_key)
-                            st.markdown("#### 📘 AI Feedback:")
-                            st.info(ai_feedback)
-                else:
-                    st.info("Enter your OpenRouter API key above to enable AI analysis.")
-
-
-# Check if we have sprint data and display it
+            # Check if we have sprint data and display it
             if "sprint_data" in results:
                 sprint_data = results["sprint_data"]
                 num_sprints = sprint_data["num_sprints"]
@@ -2537,7 +2479,7 @@ def render_sprint_task_planner():
                             if response.status_code == 200:
                                 for chunk in response.iter_lines():
                                     if chunk:
-    "Type,Description,Votes"
+                               Type,Description,Votes
         Went Well,The team was collaborative,5
         Needs Improvement,Documentation is lacking,3
         ```
