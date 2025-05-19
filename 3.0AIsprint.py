@@ -2479,13 +2479,11 @@ def render_sprint_task_planner():
                             if response.status_code == 200:
                                 for chunk in response.iter_lines():
                                     if chunk:
-                               Type,Description,Votes
-        Went Well,The team was collaborative,5
-        Needs Improvement,Documentation is lacking,3
-        ```
-
-        The tool will also recognize associated tasks when formatted as:
-        ```
-        Feedback Description,Work Item Title,Work Item Type,Work Item Id,
-        Documentation is lacking,Improve Docs,Task,12345
-        ```
+                               try:
+                                            line = json.loads(chunk.decode('utf-8'))
+                                            if 'choices' in line and len(line['choices']) > 0 and 'delta' in line['choices'][0] and 'content' in line['choices'][0]['delta']:
+                                                chunk_content = line['choices'][0]['delta']['content']
+                                                full_response += chunk_content
+                                                message_placeholder.markdown(full_response + "▌")
+                                        except json.JSONDecodeError:
+                                            print(f"Received non-JSON chunk: {chunk}")
