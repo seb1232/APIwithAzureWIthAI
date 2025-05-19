@@ -2531,7 +2531,7 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
         task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
         
         # If we found a match and developer has enough hours, assign the task
-        if best_match is not None and best_score > 0 and remaining_hours[best_match] >= task_hours:
+        if best_match is not None and task_hours > 0 and remaining_hours[best_match] >= task_hours:
             assignments[idx] = best_match
             remaining_hours[best_match] -= task_hours
             
