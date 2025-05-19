@@ -2472,8 +2472,8 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
 
     # For each unassigned task
     for idx, task in tasks_df.iterrows():
-        best_match = None
-        best_score = 0
+        # Store all potential matches with their scores
+        potential_matches = []
 
         # Create a combined text from relevant fields for matching
         task_text = ""
@@ -2490,25 +2490,42 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
         if "Product Release" in task and not pd.isna(task["Product Release"]):
             task_text += " " + str(task["Product Release"]).lower()
 
-        # Add any other relevant fields here
-
-        # For each developer, calculate match score
+        # Calculate match scores for all developers
         for dev_name, expertise_keywords in developer_expertise.items():
             score = 0
+            matches = 0
+            total_keywords = len(expertise_keywords)
 
-            # Count how many expertise keywords match the task text
+            # Count matches and calculate weighted score
             for keyword in expertise_keywords:
                 if keyword in task_text:
-                    score += 1
+                    matches += 1
+                    # Give higher weight to longer keyword matches
+                    score += len(keyword)
 
-            # Normalize by the number of keywords to avoid bias toward developers with more keywords
-            if len(expertise_keywords) > 0:
-                score = score / len(expertise_keywords)
+            # Calculate final score considering:
+            # 1. Number of matching keywords
+            # 2. Length of matching keywords
+            # 3. Available capacity
+            if total_keywords > 0:
+                keyword_match_ratio = matches / total_keywords
+                capacity_ratio = remaining_hours[dev_name] / st.session_state.developer_hours[dev_name]
+                final_score = keyword_match_ratio * score * capacity_ratio
 
-            # If this developer is a better match, update
-            if score > best_score:
-                best_score = score
+                if final_score > 0:
+                    potential_matches.append((dev_name, final_score))
+
+        # Sort potential matches by score (highest first)
+        potential_matches.sort(key=lambda x: x[1], reverse=True)
+
+        # Select the best match with available capacity
+        best_match = None
+        task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
+
+        for dev_name, score in potential_matches:
+            if remaining_hours[dev_name] >= task_hours:
                 best_match = dev_name
+                break
 
         # Check task hours
         task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
