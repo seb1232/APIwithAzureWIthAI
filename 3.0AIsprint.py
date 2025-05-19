@@ -2407,14 +2407,55 @@ def smart_task_assignment():
     if task_source == "Upload CSV":
         uploaded_file = st.file_uploader("Upload task CSV file", type=["csv"])
         if uploaded_file is not None:
-            df_tasks = pd.read_csv(uploaded_file)
-            st.success("Tasks loaded successfully")
-            st.write("Preview of loaded tasks:")
-            st.dataframe(df_tasks.head(), use_container_width=True)
-            
-            # Initialize Assigned To column if not present
-            if "Assigned To" not in df_tasks.columns:
-                df_tasks["Assigned To"] = ""
+            try:
+                # Load data
+                df_tasks = pd.read_csv(uploaded_file)
+
+                # Preview data
+                st.subheader("Data Preview")
+                st.dataframe(df_tasks.head(10), use_container_width=True)
+
+                # Check if required columns are present
+                required_columns = ["ID", "Title", "Priority", "Original Estimates"]
+                missing_columns = [col for col in required_columns if col not in df_tasks.columns]
+
+                if missing_columns:
+                    st.error(f"Missing required columns: {', '.join(missing_columns)}")
+                else:
+                    # Process the data
+                    # Filter out completed tasks
+                    if "State" in df_tasks.columns:
+                        df_tasks = df_tasks[df_tasks["State"].str.lower() != "done"]
+
+                    # Initialize Assigned To column if not present
+                    if "Assigned To" not in df_tasks.columns:
+                        df_tasks["Assigned To"] = ""
+
+                    # Show some statistics
+                    total_tasks = len(df_tasks)
+
+                    # Count priority levels
+                    priority_counts = df_tasks["Priority"].value_counts().to_dict()
+
+                    # Calculate total estimate
+                    total_estimate = df_tasks["Original Estimates"].sum()
+
+                    # Display stats in columns with Apple-style cards
+                    col1, col2, col3 = st.columns(3)
+
+                    with col1:
+                        st.metric("Total Tasks", total_tasks)
+
+                    with col2:
+                        st.metric("Total Estimated Hours", f"{total_estimate:.1f}")
+
+                    with col3:
+                        priority_text = ", ".join([f"{k}: {v}" for k, v in priority_counts.items()])
+                        st.metric("Priority Distribution", priority_text)
+
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.error("Please make sure your CSV file has the required columns (ID, Title, Priority, Original Estimates)")
                 
     elif task_source == "Use Current Tasks" and st.session_state.df_tasks is not None:
         df_tasks = st.session_state.df_tasks.copy()
