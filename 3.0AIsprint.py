@@ -806,8 +806,9 @@ def process_ai_message(prompt, retro_feedback, api_key):
 
 
 
+
 def analyze_sprint_results_with_ai(df_results, api_key, model="anthropic/claude-2"):
-    """Use OpenRouter AI to analyze sprint assignment results and provide suggestions."""
+    """Use OpenRouter AI to analyze sprint assignment results and provide suggestions."""    
     if df_results is None or df_results.empty:
         return "No sprint results available for analysis."
 
@@ -815,8 +816,10 @@ def analyze_sprint_results_with_ai(df_results, api_key, model="anthropic/claude-
     preview_df = df_results[["ID", "Title", "Assigned To", "Sprint", "Priority", "Original Estimates"]].head(20)
 
     for _, row in preview_df.iterrows():
-        context += f"- Task '{row['Title']}' (ID {row['ID']}) with priority {row['Priority']} " \\
-                   f"was assigned to {row['Assigned To']} in {row['Sprint']} (Estimate: {row['Original Estimates']}h)\n"
+        context += (
+            f"- Task '{row['Title']}' (ID {row['ID']}) with priority {row['Priority']} "
+            f"was assigned to {row['Assigned To']} in {row['Sprint']} (Estimate: {row['Original Estimates']}h)\n"
+        )
 
     prompt = "Analyze this sprint task distribution. Suggest improvements for fairness, capacity utilization, or task priority balancing."
 
