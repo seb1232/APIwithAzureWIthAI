@@ -2520,7 +2520,11 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
             
             # Add sprint assignment based on hours
             sprint_number = 1 + len([x for x in assignments.values() if x == best_match]) // 5  # New sprint every 5 tasks
-            assignments[idx] = (best_match, f"Sprint {sprint_number}")
+            # Update the DataFrame directly
+            tasks_df.loc[idx, "Assigned To"] = best_match
+            tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
+            # Store in assignments dictionary
+            assignments[idx] = best_match
 
     return assignments
 #Main Navigation
