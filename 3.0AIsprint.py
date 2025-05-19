@@ -2410,9 +2410,16 @@ def smart_task_assignment():
             df_tasks = pd.read_csv(uploaded_file)
             st.success("Tasks loaded successfully")
             st.write("Preview of loaded tasks:")
-            st.dataframe(df_tasks.head())
+            st.dataframe(df_tasks.head(), use_container_width=True)
+            
+            # Initialize Assigned To column if not present
+            if "Assigned To" not in df_tasks.columns:
+                df_tasks["Assigned To"] = ""
+                
     elif task_source == "Use Current Tasks" and st.session_state.df_tasks is not None:
         df_tasks = st.session_state.df_tasks.copy()
+        if "Assigned To" not in df_tasks.columns:
+            df_tasks["Assigned To"] = ""
         st.success("Using current tasks from session")
     elif task_source == "Use Azure DevOps Tasks" and st.session_state.azure_config["connected"]:
         # Implement Azure DevOps integration here
