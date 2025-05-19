@@ -2405,62 +2405,18 @@ def smart_task_assignment():
     df_tasks = None
 
     if task_source == "Upload CSV":
-        uploaded_file = st.file_uploader("Upload task CSV file", type=["csv"])
-        if uploaded_file is not None:
-            try:
-                # Load data
+        # First try to load the existing CSV from attached_assets
+        try:
+            df_tasks = pd.read_csv("attached_assets/Coorg.csv")
+            st.success("Loaded tasks from Coorg.csv")
+        except Exception as e:
+            # If that fails, allow manual upload
+            uploaded_file = st.file_uploader("Upload task CSV file", type=["csv"])
+            if uploaded_file is not None:
                 df_tasks = pd.read_csv(uploaded_file)
-
-                # Preview data
-                st.subheader("Data Preview")
-                st.dataframe(df_tasks.head(10), use_container_width=True)
-
-                # Check if required columns are present
-                required_columns = ["ID", "Title", "Priority", "Original Estimates"]
-                missing_columns = [col for col in required_columns if col not in df_tasks.columns]
-
-                if missing_columns:
-                    st.error(f"Missing required columns: {', '.join(missing_columns)}")
-                else:
-                    # Process the data
-                    # Filter out completed tasks
-                    if "State" in df_tasks.columns:
-                        df_tasks = df_tasks[df_tasks["State"].str.lower() != "done"]
-
-                    # Initialize Assigned To column if not present
-                    if "Assigned To" not in df_tasks.columns:
-                        df_tasks["Assigned To"] = ""
-
-                    # Show some statistics
-                    total_tasks = len(df_tasks)
-
-                    # Count priority levels
-                    priority_counts = df_tasks["Priority"].value_counts().to_dict()
-
-                    # Calculate total estimate
-                    total_estimate = df_tasks["Original Estimates"].sum()
-
-                    # Display stats in columns with Apple-style cards
-                    col1, col2, col3 = st.columns(3)
-
-                    with col1:
-                        st.metric("Total Tasks", total_tasks)
-
-                    with col2:
-                        st.metric("Total Estimated Hours", f"{total_estimate:.1f}")
-
-                    with col3:
-                        priority_text = ", ".join([f"{k}: {v}" for k, v in priority_counts.items()])
-                        st.metric("Priority Distribution", priority_text)
-
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
-                st.error("Please make sure your CSV file has the required columns (ID, Title, Priority, Original Estimates)")
-                
+                st.success("Tasks loaded successfully from uploaded file")
     elif task_source == "Use Current Tasks" and st.session_state.df_tasks is not None:
         df_tasks = st.session_state.df_tasks.copy()
-        if "Assigned To" not in df_tasks.columns:
-            df_tasks["Assigned To"] = ""
         st.success("Using current tasks from session")
     elif task_source == "Use Azure DevOps Tasks" and st.session_state.azure_config["connected"]:
         # Implement Azure DevOps integration here
@@ -2468,18 +2424,14 @@ def smart_task_assignment():
 
     if df_tasks is not None:
         # Display tasks
-        st.write("Tasks for Assignment:")
+        st.write("Unassigned Tasks:")
 
-        # Initialize Assigned To column if not present
-        if "Assigned To" not in df_tasks.columns:
-            df_tasks["Assigned To"] = ""
-        
-        # Display all tasks that can be assigned
-        assignable_tasks = df_tasks.copy()
-        st.dataframe(assignable_tasks)
+        # Filter for unassigned tasks (assuming 'Assigned To' is the column name)
+        unassigned_mask = df_tasks["Assigned To"].isna() | (df_tasks["Assigned To"] == "")
+        unassigned_tasks = df_tasks[unassigned_mask]
 
-        # Show button if we have tasks and developers
-        if len(assignable_tasks) > 0:
+        if len(unassigned_tasks) == 0:
+            st.info("No unassigned tasks found")
         else:
             st.dataframe(unassigned_tasks)
 
