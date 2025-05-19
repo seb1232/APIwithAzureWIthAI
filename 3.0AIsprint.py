@@ -2357,11 +2357,11 @@ def smart_task_assignment():
     sprint_duration = st.sidebar.number_input("Sprint Duration (weeks)", 1, 4, st.session_state.sprint_duration)
     days_per_week = st.sidebar.number_input("Working Days per Week", 1, 7, 5)
     hours_per_day = st.sidebar.number_input("Working Hours per Day", 1, 12, 8)
-    
+
     # Calculate total sprint hours
     total_sprint_hours = sprint_duration * days_per_week * hours_per_day
     st.session_state.sprint_duration = sprint_duration
-    
+
     st.sidebar.info(f"Total hours per sprint: {total_sprint_hours}")
 
     # Add developer form
@@ -2409,6 +2409,8 @@ def smart_task_assignment():
         if uploaded_file is not None:
             df_tasks = pd.read_csv(uploaded_file)
             st.success("Tasks loaded successfully")
+            st.write("Preview of loaded tasks:")
+            st.dataframe(df_tasks.head())
     elif task_source == "Use Current Tasks" and st.session_state.df_tasks is not None:
         df_tasks = st.session_state.df_tasks.copy()
         st.success("Using current tasks from session")
@@ -2486,18 +2488,18 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
         # Find best match
         best_match = None
         best_score = 0
-        
+
         for dev_name, expertise_keywords in developer_expertise.items():
             # Skip if developer doesn't have enough hours
             if remaining_hours[dev_name] < task_hours:
                 continue
-                
+
             # Calculate match score
             score = 0
             for keyword in expertise_keywords:
                 if keyword.lower() in task_text:
                     score += 1
-                    
+
             # Update best match if better score found
             if score > best_score:
                 best_match = dev_name
@@ -2507,7 +2509,7 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
         if best_match is not None:
             assignments[idx] = best_match
             remaining_hours[best_match] -= task_hours
-            
+
             # Update DataFrame
             tasks_df.loc[idx, "Assigned To"] = best_match
             sprint_number = 1 + len([x for x in assignments.values() if x == best_match]) // 5
