@@ -2467,10 +2467,15 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
         task_text = ""
         # Add Title if exists
         if "Title" in task and not pd.isna(task["Title"]):
-            task_text += " " + str(task["Title"]).lower()
+            title = str(task["Title"]).lower()
+            # Handle both Compliant and Complaint keywords
+            title = title.replace("complaint", "compliant")
+            task_text += " " + title
         # Add Category if exists  
         if "Category" in task and not pd.isna(task["Category"]):
-            task_text += " " + str(task["Category"]).lower()
+            category = str(task["Category"]).lower()
+            category = category.replace("complaint", "compliant")
+            task_text += " " + category
 
         # Get task hours
         task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
