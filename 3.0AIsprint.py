@@ -2537,7 +2537,7 @@ def render_sprint_task_planner():
                             if response.status_code == 200:
                                 for chunk in response.iter_lines():
                                     if chunk:
-                               Type,Description,Votes
+    "Type,Description,Votes"
         Went Well,The team was collaborative,5
         Needs Improvement,Documentation is lacking,3
         ```
