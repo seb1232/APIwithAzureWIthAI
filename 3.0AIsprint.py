@@ -2468,14 +2468,18 @@ def smart_task_assignment():
 
     if df_tasks is not None:
         # Display tasks
-        st.write("Unassigned Tasks:")
+        st.write("Tasks for Assignment:")
 
-        # Filter for unassigned tasks (assuming 'Assigned To' is the column name)
-        unassigned_mask = df_tasks["Assigned To"].isna() | (df_tasks["Assigned To"] == "")
-        unassigned_tasks = df_tasks[unassigned_mask]
+        # Initialize Assigned To column if not present
+        if "Assigned To" not in df_tasks.columns:
+            df_tasks["Assigned To"] = ""
+        
+        # Display all tasks that can be assigned
+        assignable_tasks = df_tasks.copy()
+        st.dataframe(assignable_tasks)
 
-        if len(unassigned_tasks) == 0:
-            st.info("No unassigned tasks found")
+        # Show button if we have tasks and developers
+        if len(assignable_tasks) > 0:
         else:
             st.dataframe(unassigned_tasks)
 
