@@ -2456,7 +2456,7 @@ def smart_task_assignment():
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")
                 st.error("Please make sure your CSV file has the required columns (ID, Title, Priority, Original Estimates)")
-                
+
     elif task_source == "Use Current Tasks" and st.session_state.df_tasks is not None:
         df_tasks = st.session_state.df_tasks.copy()
         if "Assigned To" not in df_tasks.columns:
@@ -2507,61 +2507,70 @@ def smart_task_assignment():
 
 def assign_tasks_to_developers(tasks_df, developer_expertise):
     """
-    Assign tasks to developers based on keyword matching and available hours
+    Assign tasks to developers based on keyword matching and priority balancing
     """
     assignments = {}
     remaining_hours = st.session_state.developer_hours.copy()
+    dev_priority_counts = {dev: {'high': 0, 'medium': 0, 'low': 0} for dev in developer_expertise.keys()}
 
-    # For each unassigned task
+    # First, group tasks by priority
+    priority_groups = {'high': [], 'medium': [], 'low': []}
+    
+    # Sort tasks by priority first
     for idx, task in tasks_df.iterrows():
-        task_text = ""
-        # Add Title if exists
-        if "Title" in task and not pd.isna(task["Title"]):
-            title = str(task["Title"]).lower()
-            # Handle keywords
-            title = title.replace("complaint", "compliant")
-            title = title.replace("security vulnerability", "security")
-            task_text += " " + title
-        # Add Category if exists  
-        if "Category" in task and not pd.isna(task["Category"]):
-            category = str(task["Category"]).lower()
-            # Handle keywords
-            category = category.replace("complaint", "compliant")
-            category = category.replace("security vulnerability", "security")
-            task_text += " " + category
+        task_priority = str(task.get('Priority', '')).lower()
+        if task_priority in priority_groups:
+            priority_groups[task_priority].append((idx, task))
 
-        # Get task hours
-        task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
+    # Process each priority level
+    for priority in ['high', 'medium', 'low']:
+        tasks = priority_groups[priority]
+        
+        for idx, task in tasks:
+            task_text = ""
+            if "Title" in task and not pd.isna(task["Title"]):
+                title = str(task["Title"]).lower()
+                title = title.replace("complaint", "compliant")
+                title = title.replace("security vulnerability", "security")
+                task_text += " " + title
+            if "Category" in task and not pd.isna(task["Category"]):
+                category = str(task["Category"]).lower()
+                category = category.replace("complaint", "compliant")
+                category = category.replace("security vulnerability", "security")
+                task_text += " " + category
 
-        # Find best match
-        best_match = None
-        best_score = 0
+            task_hours = float(task.get("Original Estimates", 0)) if "Original Estimates" in task else 0
 
-        for dev_name, expertise_keywords in developer_expertise.items():
-            # Skip if developer doesn't have enough hours
-            if remaining_hours[dev_name] < task_hours:
-                continue
+            # Find matching developers
+            matching_devs = []
+            for dev_name, expertise_keywords in developer_expertise.items():
+                if remaining_hours[dev_name] < task_hours:
+                    continue
 
-            # Calculate match score
-            score = 0
-            for keyword in expertise_keywords:
-                if keyword.lower() in task_text:
-                    score += 1
+                # Calculate expertise match score
+                score = sum(1 for keyword in expertise_keywords if keyword.lower() in task_text)
+                if score > 0:
+                    matching_devs.append((dev_name, score))
 
-            # Update best match if better score found
-            if score > best_score:
-                best_match = dev_name
-                best_score = score
+            # Sort by expertise score and priority balance
+            matching_devs.sort(key=lambda x: (
+                x[1],  # Expertise score
+                -dev_priority_counts[x[0]][priority],  # Negative count (less is better)
+                remaining_hours[x[0]]  # Available hours
+            ), reverse=True)
 
-        # Assign task if match found
-        if best_match is not None:
-            assignments[idx] = best_match
-            remaining_hours[best_match] -= task_hours
+            # Assign to best matching developer
+            if matching_devs:
+                best_match = matching_devs[0][0]
+                assignments[idx] = best_match
+                remaining_hours[best_match] -= task_hours
+                dev_priority_counts[best_match][priority] += 1
 
-            # Update DataFrame
-            tasks_df.loc[idx, "Assigned To"] = best_match
-            sprint_number = 1 + len([x for x in assignments.values() if x == best_match]) // 5
-            tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
+                # Update DataFrame
+                tasks_df.loc[idx, "Assigned To"] = best_match
+                tasks_per_sprint = 5
+                sprint_number = 1 + sum(dev_priority_counts[best_match].values()) // tasks_per_sprint
+                tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
 
     return assignments
 #Main Navigation
