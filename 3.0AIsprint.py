@@ -2507,11 +2507,12 @@ def smart_task_assignment():
 
 def assign_tasks_to_developers(tasks_df, developer_expertise):
     """
-    Assign tasks to developers based on keyword matching and priority balancing
+    Assign tasks to developers based on keyword matching, expertise balance, and hours
     """
     assignments = {}
     remaining_hours = st.session_state.developer_hours.copy()
     dev_priority_counts = {dev: {'high': 0, 'medium': 0, 'low': 0} for dev in developer_expertise.keys()}
+    dev_expertise_counts = {dev: 0 for dev in developer_expertise.keys()}  # Track expertise assignments
 
     # First, group tasks by priority
     priority_groups = {'high': [], 'medium': [], 'low': []}
@@ -2552,11 +2553,11 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
                 if score > 0:
                     matching_devs.append((dev_name, score))
 
-            # Sort by expertise score and priority balance
+            # Sort by expertise score, hours balance, and priority balance
             matching_devs.sort(key=lambda x: (
                 x[1],  # Expertise score
-                -dev_priority_counts[x[0]][priority],  # Negative count (less is better)
-                remaining_hours[x[0]]  # Available hours
+                remaining_hours[x[0]] / st.session_state.developer_hours[x[0]],  # Hours balance ratio
+                -dev_priority_counts[x[0]][priority],  # Negative priority count (less is better)
             ), reverse=True)
 
             # Assign to best matching developer
