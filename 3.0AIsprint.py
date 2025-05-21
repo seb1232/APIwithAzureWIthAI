@@ -891,7 +891,7 @@ Use this data:
                     "messages": [{"role": "system", "content": context}] +
                                 [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
                     "temperature": 0.6,
-                    "max_tokens": 2000,
+                    "max_tokens": 500,
                     "stream": True
                 }
 
