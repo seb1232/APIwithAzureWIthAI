@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import base64
 from io import BytesIO
-from datetime import datetime, timedelta
 import requests
 import json
 import msal
@@ -2651,33 +2650,34 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
                 tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
 
     return assignments
-    ai_tab = st.tabs(["AI Suggestions"])[0]
-    with ai_tab:
-        st.header("AI Suggestions & Insights")
-        st.markdown("Powered by OpenRouter + OpenAI")
+ai_tab = st.tabs(["AI Suggestions"])[0]
+with ai_tab:
+    st.header("AI Suggestions & Insights")
+    st.markdown("Powered by OpenRouter + OpenAI")
 
-        if "ai_messages" not in st.session_state:
-            st.session_state.ai_messages = [
-                {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
-            ]
+    if "ai_messages" not in st.session_state:
+        st.session_state.ai_messages = [
+            {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
+        ]
 
-        for msg in st.session_state.ai_messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+    for msg in st.session_state.ai_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+    api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
 
-        if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
-            st.info("Analyze retrospectives first in the previous tab.")
-            st.stop()
+    if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
+        st.info("Analyze retrospectives first in the previous tab.")
+        st.stop()
 
+    if st.session_state.retro_feedback:  # Only proceed if retro_feedback is not None
         df = create_dataframe_from_results(st.session_state.retro_feedback)
 
         # Build context from feedback
-        context = "You are a helpful assistant summarizing retrospective feedback:\\n"
+        context = "You are a helpful assistant summarizing retrospective feedback:\n"
         for _, row in df.iterrows():
             task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
-            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\\n"
+            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\n"
 
         prompt = st.chat_input("Ask me anything about this retrospective...")
 
@@ -2707,7 +2707,7 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
 
                 try:
                     with requests.post("https://openrouter.ai/api/v1/chat/completions",
-                                    headers=headers, json=body, stream=True) as response:
+                                        headers=headers, json=body, stream=True) as response:
                         if response.status_code == 200:
                             for chunk in response.iter_lines():
                                 if chunk:
