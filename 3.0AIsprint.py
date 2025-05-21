@@ -827,7 +827,7 @@ def add_ai_tab():
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key_ai_tab")
 
         # === SAFE CONTEXT BUILDER ===
         df = st.session_state["df_tasks"] if "df_tasks" in st.session_state and st.session_state["df_tasks"] is not None else pd.DataFrame()
@@ -2076,7 +2076,7 @@ def render_sprint_task_planner():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        api_key = st.text_input("OpenRouter API Key", type="password", key="ai_api_key")
+        api_key = st.text_input("OpenRouter API Key", type="password", key="ai_api_key_ai_tab")
 
         if st.session_state.df_tasks is None:
             st.info("Please upload task data in the Upload Tasks tab first.")
@@ -2384,7 +2384,7 @@ def render_retrospective_analysis():
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key_ai_tab")
 
         if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
             st.info("Analyze retrospectives first in the previous tab.")
@@ -2698,7 +2698,7 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key_ai_tab")
 
         if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
             st.info("Analyze retrospectives first in the previous tab.")
