@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import base64
 from io import BytesIO
+from datetime import datetime, timedelta
 import requests
 import json
 import msal
@@ -810,6 +811,75 @@ def render_home():
         if st.button("✨ Open Retrospective Analysis ✨", key="retro-analysis-btn"):
             st.session_state.current_app = "retro_analysis"
             st.rerun()
+
+def add_ai_tab():
+    ai_tab = st.tabs(["AI Suggestions"])[0]
+    with ai_tab:
+        st.header("AI Suggestions & Insights")
+        st.markdown("Powered by OpenRouter + OpenAI")
+
+        if "ai_messages" not in st.session_state:
+            st.session_state.ai_messages = [
+                {"role": "assistant", "content": "Hi! I'm your sprint planning assistant. How can I help?"}
+            ]
+
+        for msg in st.session_state.ai_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+
+        prompt = st.chat_input("Ask me anything about your tasks and sprint planning...")
+
+        if prompt:
+            st.session_state.ai_messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                msg_placeholder = st.empty()
+                full_response = ""
+
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "HTTP-Referer": "https://localhost",
+                    "Content-Type": "application/json"
+                }
+
+                context = "You are a helpful sprint planning assistant analyzing task data and providing insights."
+                
+                body = {
+                    "model": "openai/gpt-3.5-turbo",
+                    "messages": [{"role": "system", "content": context}] +
+                                [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
+                    "temperature": 0.7,
+                    "max_tokens": 1500,
+                    "stream": True
+                }
+
+                try:
+                    with requests.post("https://openrouter.ai/api/v1/chat/completions",
+                                    headers=headers, json=body, stream=True) as response:
+                        if response.status_code == 200:
+                            for chunk in response.iter_lines():
+                                if chunk:
+                                    chunk_str = chunk.decode("utf-8")
+                                    if chunk_str.startswith("data:") and chunk_str.strip() != "data: [DONE]":
+                                        try:
+                                            data = json.loads(chunk_str[5:])
+                                            delta = data["choices"][0].get("delta", {})
+                                            if "content" in delta:
+                                                full_response += delta["content"]
+                                                msg_placeholder.markdown(full_response + "▌")
+                                        except json.JSONDecodeError:
+                                            continue
+                        else:
+                            full_response = f"Error: {response.status_code} - {response.text}"
+                except Exception as e:
+                    full_response = f"Error: {e}"
+
+                msg_placeholder.markdown(full_response)
+                st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
 
 def render_sprint_task_planner():
     # Apple-style animated header
@@ -1811,7 +1881,10 @@ def render_sprint_task_planner():
 
 
 
-    # 5. AZURE DEVOPS INTEGRATION TAB
+    # Add AI Suggestions tab
+    add_ai_tab()
+    
+    # 5. AZURE DEVOPS INTEGRATION TAB  
     with azure_tab:
         st.header("Azure DevOps Integration")
 
@@ -2339,6 +2412,7 @@ def render_retrospective_analysis():
                 st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
 def smart_task_assignment():
     st.markdown("<div class='animated-header'><h2>Smart Task Assignment</h2></div>", unsafe_allow_html=True)
+    add_ai_tab()
 
     # Developer expertise management section
     st.subheader("Developer Expertise Management")
@@ -2508,83 +2582,6 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
     """
     Assign tasks to developers based on keyword matching, expertise balance, and hours
     """
-    ai_tab = st.tabs(["AI Suggestions"])[0]
-    with ai_tab:
-        st.header("AI Suggestions & Insights")
-        st.markdown("Powered by OpenRouter + OpenAI")
-
-        if "ai_messages" not in st.session_state:
-            st.session_state.ai_messages = [
-                {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
-            ]
-
-        for msg in st.session_state.ai_messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
-
-        if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
-            st.info("Analyze retrospectives first in the previous tab.")
-            st.stop()
-
-        df = create_dataframe_from_results(st.session_state.retro_feedback)
-
-        # Build context from feedback
-        context = "You are a helpful assistant summarizing retrospective feedback:\\n"
-        for _, row in df.iterrows():
-            task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
-            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\\n"
-
-        prompt = st.chat_input("Ask me anything about this retrospective...")
-
-        if prompt:
-            st.session_state.ai_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            with st.chat_message("assistant"):
-                msg_placeholder = st.empty()
-                full_response = ""
-
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "HTTP-Referer": "https://localhost",
-                    "Content-Type": "application/json"
-                }
-
-                body = {
-                    "model": "openai/gpt-3.5-turbo",
-                    "messages": [{"role": "system", "content": context}] +
-                                [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
-                    "temperature": 0.7,
-                    "max_tokens": 1500,
-                    "stream": True
-                }
-
-                try:
-                    with requests.post("https://openrouter.ai/api/v1/chat/completions",
-                                    headers=headers, json=body, stream=True) as response:
-                        if response.status_code == 200:
-                            for chunk in response.iter_lines():
-                                if chunk:
-                                    chunk_str = chunk.decode("utf-8")
-                                    if chunk_str.startswith("data:") and chunk_str.strip() != "data: [DONE]":
-                                        try:
-                                            data = json.loads(chunk_str[5:])
-                                            delta = data["choices"][0].get("delta", {})
-                                            if "content" in delta:
-                                                full_response += delta["content"]
-                                                msg_placeholder.markdown(full_response + "▌")
-                                        except json.JSONDecodeError:
-                                            continue  # Skip invalid chunk
-                        else:
-                            full_response = f"Error: {response.status_code} - {response.text}"
-                except Exception as e:
-                    full_response = f"Error: {e}"
-
-                msg_placeholder.markdown(full_response)
-                st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
     assignments = {}
     remaining_hours = st.session_state.developer_hours.copy()
     dev_priority_counts = {dev: {'high': 0, 'medium': 0, 'low': 0} for dev in developer_expertise.keys()}
@@ -2650,34 +2647,33 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
                 tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
 
     return assignments
-ai_tab = st.tabs(["AI Suggestions"])[0]
-with ai_tab:
-    st.header("AI Suggestions & Insights")
-    st.markdown("Powered by OpenRouter + OpenAI")
+    ai_tab = st.tabs(["AI Suggestions"])[0]
+    with ai_tab:
+        st.header("AI Suggestions & Insights")
+        st.markdown("Powered by OpenRouter + OpenAI")
 
-    if "ai_messages" not in st.session_state:
-        st.session_state.ai_messages = [
-            {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
-        ]
+        if "ai_messages" not in st.session_state:
+            st.session_state.ai_messages = [
+                {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
+            ]
 
-    for msg in st.session_state.ai_messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+        for msg in st.session_state.ai_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
 
-    api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
 
-    if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
-        st.info("Analyze retrospectives first in the previous tab.")
-        st.stop()
+        if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
+            st.info("Analyze retrospectives first in the previous tab.")
+            st.stop()
 
-    if st.session_state.retro_feedback:  # Only proceed if retro_feedback is not None
         df = create_dataframe_from_results(st.session_state.retro_feedback)
 
         # Build context from feedback
-        context = "You are a helpful assistant summarizing retrospective feedback:\n"
+        context = "You are a helpful assistant summarizing retrospective feedback:\\n"
         for _, row in df.iterrows():
             task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
-            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\n"
+            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\\n"
 
         prompt = st.chat_input("Ask me anything about this retrospective...")
 
@@ -2707,7 +2703,7 @@ with ai_tab:
 
                 try:
                     with requests.post("https://openrouter.ai/api/v1/chat/completions",
-                                        headers=headers, json=body, stream=True) as response:
+                                    headers=headers, json=body, stream=True) as response:
                         if response.status_code == 200:
                             for chunk in response.iter_lines():
                                 if chunk:
