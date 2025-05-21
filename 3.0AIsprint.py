@@ -818,49 +818,49 @@ def add_ai_tab():
         st.header("📊 AI Suggestions & Insights")
         st.markdown("Powered by OpenRouter + Claude or GPT-4")
 
+        # Conversation memory
         if "ai_messages" not in st.session_state:
             st.session_state.ai_messages = [
                 {"role": "assistant", "content": "Hi! I'm your AI sprint advisor. Upload your tasks and ask me for insights or suggestions."}
             ]
 
+        # Render chat history
         for msg in st.session_state.ai_messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
 
-        # 🧠 Analyze task data and build smart context
-        task_context = "No task data available."
-        if "df_tasks" in st.session_state and st.session_state.df_tasks is not None:
-            df = st.session_state.df_tasks.copy()
-            df.columns = df.columns.str.strip()  # Clean column names
+        # === AI CONTEXT BUILDER ===
+        df = st.session_state.get("df_tasks", pd.DataFrame())
 
-            task_context = f"### Summary of Uploaded Task Data:\n"
+        if not df.empty and "ID" in df.columns:
+            task_context = f"### Uploaded Task Summary\n"
             task_context += f"- Total tasks: {len(df)}\n"
 
             if "Priority" in df.columns:
-                counts = df["Priority"].value_counts()
-                task_context += f"- Priority breakdown:\n"
-                for p, c in counts.items():
-                    task_context += f"  - {p}: {c}\n"
+                priority_counts = df["Priority"].value_counts().to_dict()
+                task_context += f"- Priority Breakdown: {priority_counts}\n"
 
             if "Original Estimates" in df.columns:
-                zero_estimates = df[df["Original Estimates"].fillna(0) == 0]
-                task_context += f"- ⚠️ {len(zero_estimates)} tasks have 0 estimated hours.\n"
+                zero_estimates = df["Original Estimates"].fillna(0).eq(0).sum()
+                task_context += f"- ⚠️ {zero_estimates} tasks have 0 estimated hours.\n"
 
             if "Assigned To" in df.columns:
-                unassigned = df[df["Assigned To"].isna() | (df["Assigned To"] == "")]
-                task_context += f"- ⚠️ {len(unassigned)} tasks are unassigned.\n"
+                unassigned = df["Assigned To"].isnull().sum() + df["Assigned To"].eq("").sum()
+                task_context += f"- ⚠️ {unassigned} tasks are unassigned.\n"
 
-                if not unassigned.empty:
-                    task_context += "\n### Unassigned Tasks:\n"
-                    task_context += unassigned[["ID", "Title", "Priority", "Original Estimates"]].head(5).to_string(index=False)
+            task_context += "\n### Sample Tasks\n"
+            task_context += df[["ID", "Title", "Priority", "Original Estimates"]].head(5).to_csv(index=False)
+        else:
+            task_context = "⚠️ Task data not found. Please upload tasks in the Sprint Planner tab."
 
-            task_context += "\n### First Few Tasks (Sample):\n"
-            task_context += df.head(5).to_csv(index=False)
+        # Optional debug preview
+        with st.expander("🔍 Debug: AI Context Preview"):
+            st.code(task_context, language="markdown")
 
-        # 🧠 Smart input
-        prompt = st.chat_input("Ask for capacity, assignment issues, or improvement suggestions...")
+        # Prompt from user
+        prompt = st.chat_input("Ask about capacity, assignment issues, optimization...")
 
         if prompt:
             st.session_state.ai_messages.append({"role": "user", "content": prompt})
@@ -876,18 +876,19 @@ def add_ai_tab():
                     "Content-Type": "application/json"
                 }
 
+                # System prompt with smart context
                 context = f"""
-You are an intelligent agile planning assistant. Your goal is to:
-- Analyze task data
-- Identify problems (e.g. unassigned tasks, missing estimates, priority imbalance)
-- Recommend actions like team rebalancing, task redistribution, or improved estimation
+You are an intelligent Agile AI assistant. Your goal is to:
+- Identify optimization opportunities in sprint/task planning
+- Detect problems: unassigned tasks, estimate gaps, priority overload
+- Recommend fixes for team workload, timeline issues, or estimation
 
 Use this data:
 {task_context}
-"""
+                """.strip()
 
                 body = {
-                    "model": "anthropic/claude-3-opus",  # Use GPT-4 if you prefer
+                    "model": "anthropic/claude-3-opus",  # or "openai/gpt-4"
                     "messages": [{"role": "system", "content": context}] +
                                 [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
                     "temperature": 0.6,
@@ -897,7 +898,7 @@ Use this data:
 
                 try:
                     with requests.post("https://openrouter.ai/api/v1/chat/completions",
-                                    headers=headers, json=body, stream=True) as response:
+                                       headers=headers, json=body, stream=True) as response:
                         if response.status_code == 200:
                             for chunk in response.iter_lines():
                                 if chunk:
@@ -918,6 +919,7 @@ Use this data:
 
                 msg_placeholder.markdown(full_response)
                 st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
+
 
 
 def render_sprint_task_planner():
