@@ -829,6 +829,20 @@ def add_ai_tab():
 
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
 
+        # Extract Data Summary for AI Context
+        task_context = ""
+        if "df_tasks" in st.session_state and st.session_state.df_tasks is not None:
+            df = st.session_state.df_tasks
+            task_context += f"Total tasks: {len(df)}\n"
+            if "Priority" in df.columns:
+                task_context += "Priority breakdown:\n"
+                task_context += df["Priority"].value_counts().to_string() + "\n"
+            if "Original Estimates" in df.columns:
+                task_context += f"Total estimated hours: {df['Original Estimates'].sum():.2f}\n"
+                task_context += f"Average estimate per task: {df['Original Estimates'].mean():.2f}\n"
+            task_context += "First 5 tasks overview:\n"
+            task_context += df.head(5).to_string(index=False)
+
         prompt = st.chat_input("Ask me anything about your tasks and sprint planning...")
 
         if prompt:
@@ -846,8 +860,12 @@ def add_ai_tab():
                     "Content-Type": "application/json"
                 }
 
-                context = "You are a helpful sprint planning assistant analyzing task data and providing insights."
-                
+                context = f"""You are a helpful sprint planning assistant.
+Here is the task data for this sprint planning session:
+{task_context}
+Provide accurate, data-driven, and structured suggestions or answers based on this information.
+"""
+
                 body = {
                     "model": "openai/gpt-3.5-turbo",
                     "messages": [{"role": "system", "content": context}] +
@@ -880,6 +898,7 @@ def add_ai_tab():
 
                 msg_placeholder.markdown(full_response)
                 st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
+
 
 def render_sprint_task_planner():
     # Apple-style animated header
