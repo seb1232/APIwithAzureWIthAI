@@ -815,12 +815,12 @@ def render_home():
 def add_ai_tab():
     ai_tab = st.tabs(["AI Suggestions"])[0]
     with ai_tab:
-        st.header("AI Suggestions & Insights")
-        st.markdown("Powered by OpenRouter + OpenAI")
+        st.header("📊 AI Suggestions & Insights")
+        st.markdown("Powered by OpenRouter + Claude or GPT-4")
 
         if "ai_messages" not in st.session_state:
             st.session_state.ai_messages = [
-                {"role": "assistant", "content": "Hi! I'm your sprint planning assistant. How can I help?"}
+                {"role": "assistant", "content": "Hi! I'm your AI sprint advisor. Upload your tasks and ask me for insights or suggestions."}
             ]
 
         for msg in st.session_state.ai_messages:
@@ -829,21 +829,38 @@ def add_ai_tab():
 
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
 
-        # Extract Data Summary for AI Context
-        task_context = ""
+        # 🧠 Analyze task data and build smart context
+        task_context = "No task data available."
         if "df_tasks" in st.session_state and st.session_state.df_tasks is not None:
-            df = st.session_state.df_tasks
-            task_context += f"Total tasks: {len(df)}\n"
-            if "Priority" in df.columns:
-                task_context += "Priority breakdown:\n"
-                task_context += df["Priority"].value_counts().to_string() + "\n"
-            if "Original Estimates" in df.columns:
-                task_context += f"Total estimated hours: {df['Original Estimates'].sum():.2f}\n"
-                task_context += f"Average estimate per task: {df['Original Estimates'].mean():.2f}\n"
-            task_context += "First 5 tasks overview:\n"
-            task_context += df.head(5).to_string(index=False)
+            df = st.session_state.df_tasks.copy()
+            df.columns = df.columns.str.strip()  # Clean column names
 
-        prompt = st.chat_input("Ask me anything about your tasks and sprint planning...")
+            task_context = f"### Summary of Uploaded Task Data:\n"
+            task_context += f"- Total tasks: {len(df)}\n"
+
+            if "Priority" in df.columns:
+                counts = df["Priority"].value_counts()
+                task_context += f"- Priority breakdown:\n"
+                for p, c in counts.items():
+                    task_context += f"  - {p}: {c}\n"
+
+            if "Original Estimates" in df.columns:
+                zero_estimates = df[df["Original Estimates"].fillna(0) == 0]
+                task_context += f"- ⚠️ {len(zero_estimates)} tasks have 0 estimated hours.\n"
+
+            if "Assigned To" in df.columns:
+                unassigned = df[df["Assigned To"].isna() | (df["Assigned To"] == "")]
+                task_context += f"- ⚠️ {len(unassigned)} tasks are unassigned.\n"
+
+                if not unassigned.empty:
+                    task_context += "\n### Unassigned Tasks:\n"
+                    task_context += unassigned[["ID", "Title", "Priority", "Original Estimates"]].head(5).to_string(index=False)
+
+            task_context += "\n### First Few Tasks (Sample):\n"
+            task_context += df.head(5).to_csv(index=False)
+
+        # 🧠 Smart input
+        prompt = st.chat_input("Ask for capacity, assignment issues, or improvement suggestions...")
 
         if prompt:
             st.session_state.ai_messages.append({"role": "user", "content": prompt})
@@ -856,22 +873,25 @@ def add_ai_tab():
 
                 headers = {
                     "Authorization": f"Bearer {api_key}",
-                    "HTTP-Referer": "https://localhost",
                     "Content-Type": "application/json"
                 }
 
-                context = f"""You are a helpful sprint planning assistant.
-Here is the task data for this sprint planning session:
+                context = f"""
+You are an intelligent agile planning assistant. Your goal is to:
+- Analyze task data
+- Identify problems (e.g. unassigned tasks, missing estimates, priority imbalance)
+- Recommend actions like team rebalancing, task redistribution, or improved estimation
+
+Use this data:
 {task_context}
-Provide accurate, data-driven, and structured suggestions or answers based on this information.
 """
 
                 body = {
-                    "model": "openai/gpt-3.5-turbo",
+                    "model": "anthropic/claude-3-opus",  # Use GPT-4 if you prefer
                     "messages": [{"role": "system", "content": context}] +
                                 [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
-                    "temperature": 0.7,
-                    "max_tokens": 1500,
+                    "temperature": 0.6,
+                    "max_tokens": 2000,
                     "stream": True
                 }
 
