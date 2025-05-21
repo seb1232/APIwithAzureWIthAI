@@ -818,21 +818,19 @@ def add_ai_tab():
         st.header("📊 AI Suggestions & Insights")
         st.markdown("Powered by OpenRouter + Claude or GPT-4")
 
-        # Conversation memory
         if "ai_messages" not in st.session_state:
             st.session_state.ai_messages = [
                 {"role": "assistant", "content": "Hi! I'm your AI sprint advisor. Upload your tasks and ask me for insights or suggestions."}
             ]
 
-        # Render chat history
         for msg in st.session_state.ai_messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
 
-        # === AI CONTEXT BUILDER ===
-        df = st.session_state.get("df_tasks", pd.DataFrame())
+        # === SAFE CONTEXT BUILDER ===
+        df = st.session_state["df_tasks"] if "df_tasks" in st.session_state and st.session_state["df_tasks"] is not None else pd.DataFrame()
 
         if not df.empty and "ID" in df.columns:
             task_context = f"### Uploaded Task Summary\n"
@@ -859,7 +857,7 @@ def add_ai_tab():
         with st.expander("🔍 Debug: AI Context Preview"):
             st.code(task_context, language="markdown")
 
-        # Prompt from user
+        # Chat input
         prompt = st.chat_input("Ask about capacity, assignment issues, optimization...")
 
         if prompt:
@@ -876,7 +874,6 @@ def add_ai_tab():
                     "Content-Type": "application/json"
                 }
 
-                # System prompt with smart context
                 context = f"""
 You are an intelligent Agile AI assistant. Your goal is to:
 - Identify optimization opportunities in sprint/task planning
