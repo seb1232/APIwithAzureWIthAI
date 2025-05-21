@@ -889,7 +889,7 @@ Use this data:
                     "messages": [{"role": "system", "content": context}] +
                                 [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
                     "temperature": 0.6,
-                    "max_tokens": 400,
+                    "max_tokens": 500,
                     "stream": True
                 }
 
@@ -916,7 +916,6 @@ Use this data:
 
                 msg_placeholder.markdown(full_response)
                 st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
-
 
 
 def render_sprint_task_planner():
