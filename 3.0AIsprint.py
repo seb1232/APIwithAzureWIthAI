@@ -1993,15 +1993,18 @@ def render_sprint_task_planner():
 
         # 🧠 Analyze mismatches
         df["Assigned To"] = df["Assigned To"].fillna("").str.strip()
-        df["Mismatch"] = df.apply(
-            lambda row: (
-                row["Assigned To"] in expertise_dict and
-                pd.notna(row["Component"]) and
-                expertise_dict[row["Assigned To"]] != row["Component"]
-            ),
-            axis=1
-        )
-        mismatches = df[df["Mismatch"]]
+        if not df.empty and "Component" in df.columns:
+            df["Mismatch"] = df.apply(
+                lambda row: (
+                    row["Assigned To"] in expertise_dict and
+                    pd.notna(row["Component"]) and
+                    expertise_dict[row["Assigned To"]] != row["Component"]
+                ),
+                axis=1
+            )
+            mismatches = df[df["Mismatch"]]
+        else:
+            mismatches = pd.DataFrame()
 
         # 📬 User input
         prompt = st.chat_input("Ask about your sprint plan or say 'fix component mismatches'...")
