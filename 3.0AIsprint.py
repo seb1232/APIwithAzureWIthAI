@@ -802,46 +802,7 @@ def render_home():
             st.session_state.current_app = "retro_analysis"
             st.rerun()
 
-def add_ai_tab(tab_id):
-    st.markdown("""
-    <style>
-    .ai-tab-container {
-        padding: 20px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class='ai-tab-container'>
-        <h3>📊 AI Suggestions & Insights</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("Powered by OpenRouter + Claude or GPT-4")
-
-    # Use unique session state key for each tab's messages
-    if f"ai_messages_{tab_id}" not in st.session_state:
-        st.session_state[f"ai_messages_{tab_id}"] = [
-            {"role": "assistant", "content": "Hi! I'm your sprint planning assistant. How can I help?"}
-        ]
-
-        for msg in st.session_state[f"ai_messages_{tab_id}"]:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key=f"openrouter_key_{tab_id}")
-
-        # Add chat input
-        prompt = st.chat_input(f"Ask about your sprint plan... ({tab_id})", key=f"chat_input_{tab_id}")
-
-        if prompt:
-            st.session_state[f"ai_messages_{tab_id}"].append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            with st.chat_message("assistant"):
-                response = "Thank you for your question. I'm analyzing your request and will provide guidance about sprint planning and task management."
-                st.session_state[f"ai_messages_{tab_id}"].append({"role": "assistant", "content": response})
-                st.markdown(response)
 
 def render_sprint_task_planner():
     # Apple-style animated header
@@ -1844,8 +1805,7 @@ def render_sprint_task_planner():
 
 
 
-    # Add AI Suggestions tab
-    add_ai_tab("sprint_planner")
+    
 
     # 5. AZURE DEVOPS INTEGRATION TAB  
     with azure_tab:
@@ -1987,153 +1947,10 @@ def render_sprint_task_planner():
                                 st.error(f"Update error: {str(e)}")
         else:
             st.info("Connect to Azure DevOps to import tasks or update assignments")
-    ai_tab = st.tabs(["6. AI Suggestions"])[0]
-
-    with ai_tab:
-        st.header("AI Suggestions and Insights")
-        st.markdown("Powered by OpenRouter + OpenAI")
-
-        if "ai_messages" not in st.session_state:
-            st.session_state.ai_messages = [
-                {"role": "assistant", "content": "Hello! I'm your sprint planning assistant. How can I help you with your task assignments today?"}
-            ]
-
-        for message in st.session_state.ai_messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-
-        api_key = st.text_input("OpenRouter API Key", type="password", key="ai_api_key_sprint_planner")
-
-        if st.session_state.df_tasks is None:
-            st.info("Please upload task data in the Upload Tasks tab first.")
-            st.stop()
-
-        df = st.session_state.df_tasks.copy()
-
-        # 🔍 Extract component expertise from the task file
-        expertise_col_member = "Unnamed: 15"
-        expertise_col_comp = "Unnamed: 16"
-        component_col = None
-
-        if expertise_col_member in df.columns and expertise_col_comp in df.columns:
-            expertise_map = df[[expertise_col_member, expertise_col_comp]].dropna()
-            expertise_map.columns = ["Member", "Expertise"]
-            expertise_dict = expertise_map.set_index("Member")["Expertise"].to_dict()
-        else:
-            expertise_dict = {}
-
-        # 📦 Extract component name from Title (e.g., "Comp1: something")
-        if "Title" in df.columns:
-            df["Component"] = df["Title"].str.extract(r"(Comp\d+)", expand=False)
-
-        # 🧠 Analyze mismatches
-        df["Assigned To"] = df["Assigned To"].fillna("").str.strip()
-        df["Mismatch"] = df.apply(
-            lambda row: (
-                row["Assigned To"] in expertise_dict and
-                pd.notna(row["Component"]) and
-                expertise_dict[row["Assigned To"]] != row["Component"]
-            ),
-            axis=1
-        )
-        mismatches = df[df["Mismatch"]]
-
-        # 📬 User input
-        prompt = st.chat_input("Ask about your sprint plan or say 'fix component mismatches'...")
-
-        if prompt:
-            st.session_state.ai_messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            # If user wants to fix mismatches
-            if "fix" in prompt.lower() and "mismatch" in prompt.lower():
-                with st.chat_message("assistant"):
-                    st.success("Fixing tasks by component expertise...")
-                    reassigned = 0
-                    for idx, row in mismatches.iterrows():
-                        correct_member = next((m for m, c in expertise_dict.items() if c == row["Component"]), None)
-                        if correct_member:
-                            df.at[idx, "Assigned To"] = correct_member
-                            reassigned += 1
-
-                    st.success(f"Reassigned {reassigned} mismatched tasks.")
-                    st.dataframe(df[["ID", "Title", "Component", "Assigned To"]], use_container_width=True)
-
-                    st.session_state.df_tasks = df  # Save back corrected
-
-                    st.session_state.ai_messages.append({
-                        "role": "assistant",
-                        "content": f"I found and reassigned {reassigned} tasks to match component expertise."
-                    })
-
-            else:
-                # 🧠 AI Context
-                context = f"""You are an expert sprint planning assistant.
-
-    There are {len(df)} tasks. Component expertise is as follows:\n"""
-                for m, c in expertise_dict.items():
-                    context += f"- {m} specializes in {c}\n"
-
-                if not mismatches.empty:
-                    context += "\n⚠️ Detected mismatches:\n"
-                    for _, row in mismatches.iterrows():
-                        context += f"- Task '{row['Title']}' assigned to {row['Assigned To']} but it's {row['Component']}\n"
-
-                context += f"\nUser prompt: {prompt}"
-
-                # 🔁 Stream response from OpenRouter
-                with st.chat_message("assistant"):
-                    message_placeholder = st.empty()
-                    full_response = ""
-
-                    headers = {
-                        "Authorization": f"Bearer {api_key}",
-                        "HTTP-Referer": "https://localhost",
-                        "Content-Type": "application/json"
-                    }
-
-                    body = {
-                        "model": "openai/gpt-3.5-turbo",
-                        "messages": [{"role": "system", "content": context}] +
-                                    [msg for msg in st.session_state.ai_messages if msg["role"] != "assistant"],
-                        "temperature": 0.7,
-                        "max_tokens": 1500,
-                        "stream": True
-                    }
-
-                    try:
-                        with requests.post(
-                            "https://openrouter.ai/api/v1/chat/completions",
-                            headers=headers,
-                            json=body,
-                            stream=True
-                        ) as response:
-                            if response.status_code == 200:
-                                for chunk in response.iter_lines():
-                                    if chunk:
-                                        chunk_str = chunk.decode('utf-8')
-                                        if chunk_str.startswith("data:"):
-                                            try:
-                                                data = json.loads(chunk_str[5:])
-                                                if "choices" in data and data["choices"]:
-                                                    delta = data["choices"][0].get("delta", {})
-                                                    if "content" in delta:
-                                                        full_response += delta["content"]
-                                                        message_placeholder.markdown(full_response + "▌")
-                                            except json.JSONDecodeError:
-                                                continue
-                            else:
-                                full_response = f"Error: {response.status_code} - {response.text}"
-                    except Exception as e:
-                        full_response = f"An error occurred: {str(e)}"
-
-                    message_placeholder.markdown(full_response)
-                    st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
+    
 
 def render_retrospective_analysis():
-    # Add AI tab at the top
-    add_ai_tab("retrospective")
+    
 
     st.markdown("""
     <div class="animated-header">
@@ -2298,8 +2115,7 @@ def render_retrospective_analysis():
                             mime="text/markdown"
                         )
 
-    # AI SUGGESTIONS TAB
-    add_ai_tab("retro_analysis")
+    
 
 def smart_task_assignment():
     st.markdown("<div class='animated-header'><h2>Smart Task Assignment</h2></div>", unsafe_allow_html=True)
