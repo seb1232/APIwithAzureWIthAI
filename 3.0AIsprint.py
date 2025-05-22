@@ -29,8 +29,8 @@ st.markdown("""
 
     /* Base styling */
     .main {
-        background-color: transparent;
-        color: #1a1a1a;
+        background-color:  #0e1117 ;
+        color: #e0e0e0;
     }
     .metric-card {
         background-color: #1e2130;
