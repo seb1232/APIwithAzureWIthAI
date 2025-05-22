@@ -842,10 +842,10 @@ def add_ai_tab(tab_id):
     st.markdown("Powered by OpenRouter + Claude or GPT-4")
 
     # Use unique session state key for each tab's messages
-        if f"ai_messages_{tab_id}" not in st.session_state:
-            st.session_state[f"ai_messages_{tab_id}"] = [
-                {"role": "assistant", "content": "Hi! I'm your sprint planning assistant. How can I help?"}
-            ]
+    if f"ai_messages_{tab_id}" not in st.session_state:
+        st.session_state[f"ai_messages_{tab_id}"] = [
+            {"role": "assistant", "content": "Hi! I'm your sprint planning assistant. How can I help?"}
+        ]
 
         for msg in st.session_state[f"ai_messages_{tab_id}"]:
             with st.chat_message(msg["role"]):
