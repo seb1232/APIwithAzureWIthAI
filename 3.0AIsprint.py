@@ -739,6 +739,9 @@ def render_home():
     }
     </style>
     """, unsafe_allow_html=True)
+    
+    # Add AI tab at the top
+    add_ai_tab("home")
 
 
     # Apple-style animated header with floating elements
@@ -2123,6 +2126,9 @@ def render_sprint_task_planner():
                     st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
 
 def render_retrospective_analysis():
+    # Add AI tab at the top
+    add_ai_tab("retrospective")
+    
     st.markdown("""
     <div class="animated-header">
         <div class="floating-container"></div>
@@ -2290,6 +2296,9 @@ def render_retrospective_analysis():
     add_ai_tab("retro_analysis")
 
 def smart_task_assignment():
+    # Add AI tab at the top
+    add_ai_tab("smart_assignment")
+    
     st.markdown("<div class='animated-header'><h2>Smart Task Assignment</h2></div>", unsafe_allow_html=True)
     add_ai_tab("smart_task_assignment")
 
