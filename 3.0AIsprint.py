@@ -2516,7 +2516,7 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
 
     # First, group tasks by priority
     priority_groups = {'high': [], 'medium': [], 'low': []}
-    
+
     # Sort tasks by priority first
     for idx, task in tasks_df.iterrows():
         task_priority = str(task.get('Priority', '')).lower()
@@ -2526,7 +2526,7 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
     # Process each priority level
     for priority in ['high', 'medium', 'low']:
         tasks = priority_groups[priority]
-        
+
         for idx, task in tasks:
             task_text = ""
             if "Title" in task and not pd.isna(task["Title"]):
@@ -2574,6 +2574,85 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
                 tasks_df.loc[idx, "Sprint"] = f"Sprint {sprint_number}"
 
     return assignments
+
+    # Add AI assistant section
+    ai_tab = st.tabs(["AI Suggestions"])[0]
+    with ai_tab:
+        st.header("AI Suggestions & Insights")
+        st.markdown("Powered by OpenRouter + OpenAI")
+
+        if "ai_messages" not in st.session_state:
+            st.session_state.ai_messages = [
+                {"role": "assistant", "content": "Hi! I'm your SPrint assistant. How can I help?"}
+            ]
+
+        for msg in st.session_state.ai_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key="ai_api_key")
+
+        if "retro_feedback" not in st.session_state or st.session_state.retro_feedback is None:
+            st.info("Analyze retrospectives first in the previous tab.")
+            st.stop()
+
+        df = create_dataframe_from_results(st.session_state.retro_feedback)
+
+        # Build context from feedback
+        context = "You are a helpful assistant summarizing retrospective feedback:\\n"
+        for _, row in df.iterrows():
+            task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
+            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\\n"
+
+        prompt = st.chat_input("Ask me anything about this retrospective...")
+
+        if prompt:
+            st.session_state.ai_messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                msg_placeholder = st.empty()
+                full_response = ""
+
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "HTTP-Referer": "https://localhost",
+                    "Content-Type": "application/json"
+                }
+
+                body = {
+                    "model": "openai/gpt-3.5-turbo",
+                    "messages": [{"role": "system", "content": context}] +
+                                [m for m in st.session_state.ai_messages if m["role"] != "assistant"],
+                    "temperature": 0.7,
+                    "max_tokens": 1500,
+                    "stream": True
+                }
+
+                try:
+                    with requests.post("https://openrouter.ai/api/v1/chat/completions",
+                                    headers=headers, json=body, stream=True) as response:
+                        if response.status_code == 200:
+                            for chunk in response.iter_lines():
+                                if chunk:
+                                    chunk_str = chunk.decode("utf-8")
+                                    if chunk_str.startswith("data:") and chunk_str.strip() != "data: [DONE]":
+                                        try:
+                                            data = json.loads(chunk_str[5:])
+                                            delta = data["choices"][0].get("delta", {})
+                                            if "content" in delta:
+                                                full_response += delta["content"]
+                                                msg_placeholder.markdown(full_response + "▌")
+                                        except json.JSONDecodeError:
+                                            continue  # Skip invalid chunk
+                        else:
+                            full_response = f"Error: {response.status_code} - {response.text}"
+                except Exception as e:
+                    full_response = f"Error: {e}"
+
+                msg_placeholder.markdown(full_response)
+                st.session_state.ai_messages.append({"role": "assistant", "content": full_response})
     ai_tab = st.tabs(["AI Suggestions"])[0]
     with ai_tab:
         st.header("AI Suggestions & Insights")
