@@ -731,19 +731,6 @@ def process_ai_message(prompt, retro_feedback, api_key):
 # =========== APPLICATION PAGES ===========
 
 def render_home():
-    st.markdown("""
-    <style>
-    body, .stApp {
-    background-color: black !important;
-    color: #e0e0e0 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Add AI tab at the top
-    add_ai_tab("home")
-
-
     # Apple-style animated header with floating elements
     st.markdown(
         """
