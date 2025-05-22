@@ -749,31 +749,32 @@ def ai_insights(page_data=None):
                 # Prepare context based on current page data
                 context = "Here is the current page data:\n" + str(page_data)
 
-                response = requests.post(
-                            "https://openrouter.ai/api/v1/chat/completions",
-                            headers={
-                                "Authorization": f"Bearer {api_key}",
-                                "Content-Type": "application/json",
-                                "HTTP-Referer": "https://replit.com",
-                                "X-Title": "Agile Project Management Suite"
-                            },
-                            json={
-                                "model": "openai/gpt-4",
-                                "messages": [
-                                    {"role": "system", "content": "You are an AI assistant helping analyze project management data and provide insights. Be concise and practical in your suggestions."},
-                                    {"role": "system", "content": context},
-                                    {"role": "user", "content": prompt}
-                                ],
-                                "temperature": 0.7,
-                                "max_tokens": 500
-                            }
-                        )
+                try:
+                    response = requests.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                            "HTTP-Referer": "https://replit.com",
+                            "X-Title": "Agile Project Management Suite"
+                        },
+                        json={
+                            "model": "openai/gpt-4",
+                            "messages": [
+                                {"role": "system", "content": "You are an AI assistant helping analyze project management data and provide insights. Be concise and practical in your suggestions."},
+                                {"role": "system", "content": context},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "temperature": 0.7,
+                            "max_tokens": 500
+                        }
+                    )
 
-                if response.status_code == 200:
-                    result = response.json()
-                    st.write(result["choices"][0]["message"]["content"])
-                else:
-                    st.error(f"API Error: {response.status_code}")
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.write(result["choices"][0]["message"]["content"])
+                    else:
+                        st.error(f"API Error: {response.status_code}")
 
                 except Exception as e:
                     st.error(f"Error calling OpenRouter API: {str(e)}")
