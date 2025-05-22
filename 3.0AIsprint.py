@@ -819,17 +819,7 @@ def add_ai_tab(tab_id):
     st.markdown("""
     <style>
     .ai-tab-container {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: #0e1117;
-        border-top: 1px solid #333;
         padding: 20px;
-        z-index: 1000;
-    }
-    .main .block-container {
-        padding-bottom: 200px;
     }
     </style>
     """, unsafe_allow_html=True)
