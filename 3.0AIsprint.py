@@ -29,8 +29,8 @@ st.markdown("""
 
     /* Base styling */
     .main {
-        background-color:  #0e1117 ;
-        color: #e0e0e0;
+        background-color: transparent;
+        color: #1a1a1a;
     }
     .metric-card {
         background-color: #1e2130;
@@ -739,7 +739,7 @@ def render_home():
     }
     </style>
     """, unsafe_allow_html=True)
-    
+
     # Add AI tab at the top
     add_ai_tab("home")
 
@@ -823,7 +823,7 @@ def add_ai_tab(tab_id):
     }
     </style>
     """, unsafe_allow_html=True)
-    
+
     st.markdown(f"""
     <div class='ai-tab-container'>
         <h3>📊 AI Suggestions & Insights</h3>
@@ -842,10 +842,10 @@ def add_ai_tab(tab_id):
                 st.markdown(msg["content"])
 
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key=f"openrouter_key_{tab_id}")
-        
+
         # Add chat input
         prompt = st.chat_input(f"Ask about your sprint plan... ({tab_id})", key=f"chat_input_{tab_id}")
-        
+
         if prompt:
             st.session_state[f"ai_messages_{tab_id}"].append({"role": "user", "content": prompt})
             with st.chat_message("user"):
@@ -2147,7 +2147,7 @@ def render_sprint_task_planner():
 def render_retrospective_analysis():
     # Add AI tab at the top
     add_ai_tab("retrospective")
-    
+
     st.markdown("""
     <div class="animated-header">
         <div class="floating-container"></div>
