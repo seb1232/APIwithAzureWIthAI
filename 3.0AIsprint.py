@@ -730,6 +730,51 @@ def process_ai_message(prompt, retro_feedback, api_key):
 
 # =========== APPLICATION PAGES ===========
 
+def ai_insights(page_data=None):
+    """Shared AI insights component that can be used across pages"""
+    st.markdown("---")
+    st.subheader("💡 AI Insights & Suggestions")
+    
+    api_key = st.text_input("OpenRouter API Key", type="password", key="ai_api_key")
+    
+    if not api_key:
+        st.info("Enter your OpenRouter API key to get AI insights")
+        return
+        
+    if page_data is not None:
+        prompt = st.chat_input("Ask about the results or get suggestions...")
+        
+        if prompt:
+            with st.spinner("Analyzing..."):
+                # Prepare context based on current page data
+                context = "Here is the current page data:\n" + str(page_data)
+                
+                try:
+                    # OpenRouter API call
+                    response = requests.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": "anthropic/claude-2",
+                            "messages": [
+                                {"role": "system", "content": context},
+                                {"role": "user", "content": prompt}
+                            ]
+                        }
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.write(result["choices"][0]["message"]["content"])
+                    else:
+                        st.error(f"API Error: {response.status_code}")
+                        
+                except Exception as e:
+                    st.error(f"Error calling OpenRouter API: {str(e)}")
+
 def render_home():
     # Apple-style animated header with floating elements
     st.markdown(
@@ -1790,6 +1835,9 @@ def render_sprint_task_planner():
 
             # Download options
             st.subheader("Export Results")
+            
+            # Add AI insights for sprint planning results
+            ai_insights(st.session_state.results)
 
             col1, col2 = st.columns(2)
 
@@ -2114,6 +2162,13 @@ def render_retrospective_analysis():
                             file_name="retrospective_analysis.md",
                             mime="text/markdown"
                         )
+                        
+                        # Add AI insights for retrospective analysis
+                        ai_insights({"feedback_results": feedback_results, "metrics": {
+                            "total_items": len(results_df),
+                            "vote_distribution": results_df["Votes"].describe().to_dict(),
+                            "task_linked_items": with_tasks
+                        }})
 
     
 
@@ -2354,7 +2409,14 @@ def assign_tasks_to_developers(tasks_df, developer_expertise):
 
     return assignments
 
-    # AI tab is already added at the top of the function
+    # Add insights about the assignments
+    ai_insights({
+        "assignments": assignments,
+        "task_data": tasks_df.to_dict(),
+        "developer_expertise": developer_expertise,
+        "remaining_hours": remaining_hours,
+        "priority_counts": dev_priority_counts
+    })
 #Main Navigation
 st.sidebar.title("Navigation")
 
