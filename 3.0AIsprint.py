@@ -834,7 +834,7 @@ def add_ai_tab(tab_id):
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key=f"openrouter_key_{tab_id}")
         
         # Add chat input
-        prompt = st.chat_input("Ask about your sprint plan...")
+        prompt = st.chat_input(f"Ask about your sprint plan... ({tab_id})", key=f"chat_input_{tab_id}")
         
         if prompt:
             st.session_state[f"ai_messages_{tab_id}"].append({"role": "user", "content": prompt})
