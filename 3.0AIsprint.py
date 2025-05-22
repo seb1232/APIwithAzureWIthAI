@@ -734,44 +734,47 @@ def ai_insights(page_data=None):
     """Shared AI insights component that can be used across pages"""
     st.markdown("---")
     st.subheader("💡 AI Insights & Suggestions")
-    
+
     api_key = st.text_input("OpenRouter API Key", type="password", key="ai_api_key")
-    
+
     if not api_key:
         st.info("Enter your OpenRouter API key to get AI insights")
         return
-        
+
     if page_data is not None:
         prompt = st.chat_input("Ask about the results or get suggestions...")
-        
+
         if prompt:
             with st.spinner("Analyzing..."):
                 # Prepare context based on current page data
                 context = "Here is the current page data:\n" + str(page_data)
-                
-                try:
-                    # OpenRouter API call
-                    response = requests.post(
-                        "https://openrouter.ai/api/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {api_key}",
-                            "Content-Type": "application/json"
-                        },
-                        json={
-                            "model": "anthropic/claude-2",
-                            "messages": [
-                                {"role": "system", "content": context},
-                                {"role": "user", "content": prompt}
-                            ]
-                        }
-                    )
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        st.write(result["choices"][0]["message"]["content"])
-                    else:
-                        st.error(f"API Error: {response.status_code}")
-                        
+
+                response = requests.post(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json",
+                                "HTTP-Referer": "https://replit.com",
+                                "X-Title": "Agile Project Management Suite"
+                            },
+                            json={
+                                "model": "openai/gpt-4",
+                                "messages": [
+                                    {"role": "system", "content": "You are an AI assistant helping analyze project management data and provide insights. Be concise and practical in your suggestions."},
+                                    {"role": "system", "content": context},
+                                    {"role": "user", "content": prompt}
+                                ],
+                                "temperature": 0.7,
+                                "max_tokens": 500
+                            }
+                        )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    st.write(result["choices"][0]["message"]["content"])
+                else:
+                    st.error(f"API Error: {response.status_code}")
+
                 except Exception as e:
                     st.error(f"Error calling OpenRouter API: {str(e)}")
 
@@ -796,6 +799,7 @@ def render_home():
         <div class="floating-element" style="width: 80px; height: 80px; left: 85%; top: 60%; background-color: rgba(156, 39, 176, 0.1); filter: blur(25px);"></div>
         <div class="floating-element" style="width: 120px; height: 120px; left: 25%; top: 80%; background-color: rgba(244, 67, 54, 0.1); filter: blur(35px);"></div>
     </div>
+    ```python
     """, unsafe_allow_html=True)
 
     # Apple-style description
@@ -1464,584 +1468,7 @@ def render_sprint_task_planner():
                         help="Estimated work hours",
                         format="%.1f",
                     ),
-                    "Assigned To": st.column_config.Column(
-                        "Assigned To",
-                        help="Team member assigned to the task",
-                        width="medium",
-                    ),
-                    "Sprint": st.column_config.Column(
-                        "Sprint",
-                        help="Sprint assignment",
-                        width="medium",
-                    ),
-                },
-                use_container_width=True
-            )
-
-            # Visualizations
-            st.subheader("Capacity Utilization")
-
-            # Prepare data for visualization
-            members = list(team_members.keys())
-            capacities = [team_members[m] for m in members]
-            used_capacities = [assigned_hours[m] for m in members]
-            remaining_capacities = [capacities[i] - used_capacities[i] for i in range(len(members))]
-
-            # Create capacity chart with dark theme
-            plt.style.use('dark_background')
-            fig, ax = plt.subplots(figsize=(10, 5))
-            bar_width = 0.35
-            x = np.arange(len(members))
-
-            # Use more vibrant colors for dark theme
-            ax.bar(x, used_capacities, bar_width, label='Used', color='#81c784')
-            ax.bar(x, remaining_capacities, bar_width, bottom=used_capacities, label='Remaining', color='#455a64')
-
-            ax.set_ylabel('Hours', color='#e0e0e0')
-            ax.set_title('Overall Capacity Utilization by Team Member', color='#81c784')
-            ax.set_xticks(x)
-            ax.set_xticklabels(members, rotation=45, ha='right', color='#e0e0e0')
-            ax.tick_params(axis='y', colors='#e0e0e0')
-            ax.spines['bottom'].set_color('#555555')
-            ax.spines['top'].set_color('#555555')
-            ax.spines['left'].set_color('#555555')
-            ax.spines['right'].set_color('#555555')
-            ax.grid(color='#333333', linestyle='-', linewidth=0.5, alpha=0.7)
-            ax.legend(facecolor='#2d2d2d', edgecolor='#555555', labelcolor='#e0e0e0')
-
-            fig.patch.set_facecolor('#1e1e1e')
-            plt.tight_layout()
-            st.pyplot(fig)
-
-            # Priority distribution
-            st.subheader("Priority Distribution")
-
-            # Prepare data for priority chart
-            priorities = ["high", "medium", "low", "other"]
-            priority_data = {member: [assigned_priorities[member].get(p, 0) for p in priorities] for member in members}
-
-            # Create stacked bar chart with dark theme
-            # We're already using dark_background style from the previous chart
-            fig, ax = plt.subplots(figsize=(10, 5))
-            bottom = np.zeros(len(members))
-
-            # Enhanced colors for better visibility on dark background
-            colors = {'high': '#ef5350', 'medium': '#ffb74d', 'low': '#81c784', 'other': '#b0bec5'}
-
-            for i, priority in enumerate(priorities):
-                priority_counts = [priority_data[member][i] for member in members]
-                ax.bar(members, priority_counts, bottom=bottom, label=priority.capitalize(), color=colors[priority])
-                bottom += priority_counts
-
-            ax.set_ylabel('Number of Tasks', color='#e0e0e0')
-            ax.set_title('Overall Priority Distribution by Team Member', color='#81c784')
-            ax.set_xticks(range(len(members)))
-            ax.set_xticklabels(members, rotation=45, ha='right', color='#e0e0e0')
-            ax.tick_params(axis='y', colors='#e0e0e0')
-            ax.spines['bottom'].set_color('#555555')
-            ax.spines['top'].set_color('#555555')
-            ax.spines['left'].set_color('#555555')
-            ax.spines['right'].set_color('#555555')
-            ax.grid(color='#333333', linestyle='-', linewidth=0.5, alpha=0.7)
-            ax.legend(facecolor='#2d2d2d', edgecolor='#555555', labelcolor='#e0e0e0')
-
-            fig.patch.set_facecolor('#1e1e1e')
-            plt.tight_layout()
-            st.pyplot(fig)
-
-            # Add detailed priority distribution as tables
-            st.subheader("Detailed Priority Mix by Team Member")
-            st.write("This table shows exactly how many tasks of each priority level were assigned to each team member:")
-
-            # Create a dataframe showing the priority distribution
-            priority_df = pd.DataFrame(assigned_priorities).T
-            priority_df.index.name = "Team Member"
-            priority_df.columns = [col.capitalize() for col in priority_df.columns]
-
-            # Add percentage columns to show proportion of each priority
-            for member in priority_df.index:
-                total = priority_df.loc[member].sum()
-                if total > 0:
-                    for col in priority_df.columns:
-                        priority_df.loc[member, f"{col} %"] = round(priority_df.loc[member, col] / total * 100, 1)
-                else:
-                    for col in priority_df.columns:
-                        priority_df.loc[member, f"{col} %"] = 0.0
-
-            # Display the dataframe
-            st.dataframe(priority_df, use_container_width=True)
-
-            # Add a color legend explaining the priority levels
-            st.markdown("""
-            <div style="margin-top: 10px; padding: 10px; background-color: #2d2d2d; border-radius: 5px;">
-                <h4 style="color: #e0e0e0;">Priority Legend</h4>
-                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 20px; height: 20px; background-color: #ef5350; margin-right: 5px;"></div>
-                        <span style="color: #e0e0e0;">High</span>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 20px; height: 20px; background-color: #ffb74d; margin-right: 5px;"></div>
-                        <span style="color: #e0e0e0;">Medium</span>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 20px; height: 20px; background-color: #81c784; margin-right: 5px;"></div>
-                        <span style="color: #e0e0e0;">Low</span>
-                    </div>
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 20px; height: 20px; background-color: #b0bec5; margin-right: 5px;"></div>
-                        <span style="color: #e0e0e0;">Other</span>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # Check if we have sprint data and display it
-            if "sprint_data" in results:
-                sprint_data = results["sprint_data"]
-                num_sprints = sprint_data["num_sprints"]
-                sprint_assignments = sprint_data["sprint_assignments"]
-                sprint_capacities = sprint_data["sprint_capacities"]
-
-                st.header("Sprint Planning")
-                st.markdown("""
-                <div style="background-color: #1e3f20; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
-                    <p style="color: #e0e0e0; margin: 0;">
-                        Tasks are distributed across sprints with remaining capacity carried forward. 
-                        Each sprint balances priority distribution while respecting capacity constraints.
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # Create sprint tabs for detailed view
-                sprint_tabs = st.tabs([f"Sprint {i}" for i in range(1, num_sprints + 1)])
-
-                for i, sprint_tab in enumerate(sprint_tabs):
-                    sprint_name = f"Sprint {i+1}"
-
-                    with sprint_tab:
-                        st.subheader(f"{sprint_name} Assignments")
-
-                        # Sprint Statistics
-                        sprint_tasks = df[df["Sprint"] == sprint_name]
-
-                        if len(sprint_tasks) == 0:
-                            st.info(f"No tasks assigned to {sprint_name}.")
-                            continue
-
-                        # Display key metrics for this sprint
-                        col1, col2, col3 = st.columns(3)
-
-                        with col1:
-                            st.metric("Tasks", len(sprint_tasks))
-
-                        with col2:
-                            sprint_hours = sum(sprint_capacities[sprint_name].values())
-                            st.metric("Hours", f"{sprint_hours:.1f}")
-
-                        with col3:
-                            # Calculate how much capacity was utilized in this sprint
-                            total_sprint_capacity = sum([team_members[m] / num_sprints for m in team_members])
-                            sprint_percent = (sprint_hours / total_sprint_capacity * 100) if total_sprint_capacity > 0 else 0
-                            st.metric("Sprint Capacity Used", f"{sprint_percent:.1f}%")
-
-                        # Tasks assigned to this sprint
-                        st.subheader("Tasks")
-                        st.dataframe(
-                            sprint_tasks,
-                            column_config={
-                                "Priority": st.column_config.Column(
-                                    "Priority",
-                                    help="Task priority level",
-                                    width="medium"
-                                ),
-                                "Original Estimates": st.column_config.NumberColumn(
-                                    "Hours",
-                                    help="Estimated work hours",
-                                    format="%.1f"
-                                ),
-                                "Assigned To": st.column_config.Column(
-                                    "Assigned To",
-                                    help="Team member assigned to the task",
-                                    width="medium"
-                                )
-                            },
-                            use_container_width=True
-                        )
-
-                        # Create visualization of capacity used in this sprint
-                        st.subheader("Sprint Capacity")
-
-                        # Prepare data
-                        members = list(team_members.keys())
-                        sprint_used = [sprint_capacities[sprint_name].get(m, 0) for m in members]
-
-                        # Calculate carried over capacity from previous sprint
-                        carried_over = []
-                        if i > 0:
-                            prev_sprint = f"Sprint {i}"
-                            for m in members:
-                                member_capacity = team_members[m] / num_sprints  # Base capacity per sprint
-                                used_in_prev = sprint_capacities[prev_sprint].get(m, 0)
-                                carried = max(0, member_capacity - used_in_prev)
-                                carried_over.append(carried)
-                        else:
-                            carried_over = [0] * len(members)
-
-                        # Create sprint capacity chart
-                        plt.style.use('dark_background')
-                        fig, ax = plt.subplots(figsize=(10, 5))
-                        bar_width = 0.35
-                        x = np.arange(len(members))
-
-                        # Member's standard capacity for this sprint
-                        standard_capacity = [team_members[m] / num_sprints for m in members]
-
-                        # Visualize standard capacity, carried over capacity, and used capacity
-                        ax.bar(x, standard_capacity, bar_width, label='Standard Capacity', color='#455a64', alpha=0.6)
-                        if any(c > 0 for c in carried_over):
-                            ax.bar(x, carried_over, bar_width, bottom=standard_capacity, label='Carried Over', color='#5c6bc0')
-                        ax.bar(x, sprint_used, bar_width/1.5, label='Used', color='#81c784')
-
-                        # Styling
-                        ax.set_ylabel('Hours', color='#e0e0e0')
-                        ax.set_title(f'{sprint_name} Capacity Utilization', color='#81c784')
-                        ax.set_xticks(x)
-                        ax.set_xticklabels(members, rotation=45, ha='right', color='#e0e0e0')
-                        ax.tick_params(axis='y', colors='#e0e0e0')
-                        ax.spines['bottom'].set_color('#555555')
-                        ax.spines['top'].set_color('#555555')
-                        ax.spines['left'].set_color('#555555')
-                        ax.spines['right'].set_color('#555555')
-                        ax.grid(color='#333333', linestyle='-', linewidth=0.5, alpha=0.7)
-                        ax.legend(facecolor='#2d2d2d', edgecolor='#555555', labelcolor='#e0e0e0')
-
-                        fig.patch.set_facecolor('#1e1e1e')
-                        plt.tight_layout()
-                        st.pyplot(fig)
-
-                        # Create priority breakdown for this sprint
-                        st.subheader("Sprint Priority Distribution")
-
-                        # Get priority distribution for this sprint
-                        sprint_priority_counts = {}
-                        for member in members:
-                            sprint_priority_counts[member] = {"high": 0, "medium": 0, "low": 0, "other": 0}
-
-                        for _, task in sprint_tasks.iterrows():
-                            member = task["Assigned To"]
-                            priority = task["Priority"].lower()
-                            if priority not in ["high", "medium", "low"]:
-                                priority = "other"
-                            sprint_priority_counts[member][priority] += 1
-
-                        # Create stacked bar chart for sprint priority distribution
-                        priority_data = {m: [sprint_priority_counts[m].get(p, 0) for p in priorities] for m in members}
-
-                        fig, ax = plt.subplots(figsize=(10, 5))
-                        bottom = np.zeros(len(members))
-
-                        for i, priority in enumerate(priorities):
-                            priority_counts = [priority_data[member][i] for member in members]
-                            ax.bar(members, priority_counts, bottom=bottom, label=priority.capitalize(), color=colors[priority])
-                            bottom += priority_counts
-
-                        ax.set_ylabel('Number of Tasks', color='#e0e0e0')
-                        ax.set_title(f'{sprint_name} Priority Distribution', color='#81c784')
-                        ax.set_xticks(range(len(members)))
-                        ax.set_xticklabels(members, rotation=45, ha='right', color='#e0e0e0')
-                        ax.tick_params(axis='y', colors='#e0e0e0')
-                        ax.spines['bottom'].set_color('#555555')
-                        ax.spines['top'].set_color('#555555')
-                        ax.spines['left'].set_color('#555555')
-                        ax.spines['right'].set_color('#555555')
-                        ax.grid(color='#333333', linestyle='-', linewidth=0.5, alpha=0.7)
-                        ax.legend(facecolor='#2d2d2d', edgecolor='#555555', labelcolor='#e0e0e0')
-
-                        fig.patch.set_facecolor('#1e1e1e')
-                        plt.tight_layout()
-                        st.pyplot(fig)
-
-                # Create a Gantt chart visualization of tasks across sprints
-                st.header("Sprint Timeline")
-
-                # Prepare data for Gantt chart
-                gantt_data = []
-                for _, task in df.iterrows():
-                    if task["Assigned To"] and task["Sprint"]:
-                        sprint_num = int(task["Sprint"].split(" ")[1])
-                        gantt_data.append({
-                            "Task": f"{task['ID']}: {task['Title']}",
-                            "Start": sprint_num,
-                            "Duration": 1,  # Each task takes 1 sprint
-                            "Member": task["Assigned To"],
-                            "Priority": task["Priority"]
-                        })
-
-                if gantt_data:
-                    # Convert to DataFrame for easier plotting
-                    gantt_df = pd.DataFrame(gantt_data)
-
-                    # Sort by Member and Sprint
-                    gantt_df = gantt_df.sort_values(["Member", "Start"])
-
-                    # Create figure and axes - adjust height based on task count
-                    max_height = max(8, min(20, len(gantt_df) * 0.3))  # Limit max height 
-                    fig, ax = plt.subplots(figsize=(12, max_height))
-
-                    # Plot each task as a horizontal bar
-                    y_pos = np.arange(len(gantt_df))
-
-                    # Use colors based on priority
-                    task_colors = [colors.get(task["Priority"].lower(), colors.get("other")) for _, task in gantt_df.iterrows()]
-
-                    # Plot bars
-                    ax.barh(y_pos, gantt_df["Duration"], left=gantt_df["Start"], color=task_colors, alpha=0.9)
-
-                    # Add vertical lines for sprint boundaries
-                    for sprint in range(1, num_sprints + 1):
-                        ax.axvline(sprint, color='white', linestyle='--', alpha=0.3)
-
-                    # Set y-axis labels to task names
-                    ax.set_yticks(y_pos)
-                    ax.set_yticklabels(gantt_df["Task"], fontsize=8, color='#e0e0e0')
-
-                    # Set x-axis labels to sprint numbers
-                    ax.set_xticks(range(1, num_sprints + 2))
-                    ax.set_xticklabels([f"Sprint {i}" for i in range(1, num_sprints + 2)], color='#e0e0e0')
-
-                    # Add member name annotations
-                    for i, (_, task) in enumerate(gantt_df.iterrows()):
-                        ax.text(task["Start"] + 0.5, i, task["Member"], 
-                            ha='center', va='center', color='#1e1e1e', fontweight='bold')
-
-                    # Add labels
-                    ax.set_xlabel('Sprints', color='#e0e0e0')
-                    ax.set_title('Task Timeline Across Sprints', color='#81c784')
-
-                    # Style the chart
-                    ax.tick_params(axis='x', colors='#e0e0e0')
-                    ax.spines['bottom'].set_color('#555555')
-                    ax.spines['top'].set_color('#555555')
-                    ax.spines['left'].set_color('#555555')
-                    ax.spines['right'].set_color('#555555')
-                    ax.grid(color='#333333', linestyle='-', linewidth=0.5, alpha=0.7)
-
-                    fig.patch.set_facecolor('#1e1e1e')
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                else:
-                    st.info("No tasks have been assigned to sprints yet.")
-
-            # Download options
-            st.subheader("Export Results")
-            
-            # Add AI insights for sprint planning results
-            ai_insights(st.session_state.results)
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown(get_download_link(df, "Task_Assignments.xlsx", "excel"), unsafe_allow_html=True)
-
-            with col2:
-                st.markdown(get_download_link(df, "Task_Assignments.csv", "csv"), unsafe_allow_html=True)
-
-
-
-
-
-
-
-    
-
-    # 5. AZURE DEVOPS INTEGRATION TAB  
-    with azure_tab:
-        st.header("Azure DevOps Integration")
-
-        # Display current connection status
-        if st.session_state.azure_config["connected"]:
-            st.success(f"Connected to Azure DevOps: {st.session_state.azure_config['org_url']}/{st.session_state.azure_config['project']}")
-        else:
-            st.info("Not connected to Azure DevOps. Configure connection below.")
-
-        # Connection configuration
-        with st.expander("Azure DevOps Connection", expanded=not st.session_state.azure_config["connected"]):
-            st.subheader("Configure Connection")
-
-            # Azure DevOps connection form
-            with st.form("azure_connection_form"):
-                st.markdown("""
-                <div class="azure-section">
-                    Enter your Azure DevOps organization and authentication details.
-                    Use service principal authentication for automated access.
-                </div>
-                """, unsafe_allow_html=True)
-
-                org_url = st.text_input("Organization URL (e.g., https://dev.azure.com/yourorg)", st.session_state.azure_config["org_url"])
-                project = st.text_input("Project Name", st.session_state.azure_config["project"])
-                team = st.text_input("Team Name", st.session_state.azure_config["team"])
-
-                # Authentication options
-                auth_tab1, auth_tab2 = st.tabs(["Service Principal", "PAT Token"])
-
-                with auth_tab1:
-                    client_id = st.text_input("Client ID", type="password")
-                    client_secret = st.text_input("Client Secret", type="password")
-                    tenant_id = st.text_input("Tenant ID", type="password")
-                    auth_method = "service_principal"
-
-                with auth_tab2:
-                    pat_token = st.text_input("Personal Access Token (PAT)", type="password")
-                    auth_method = "pat"
-
-                submitted = st.form_submit_button("Connect to Azure DevOps")
-                if submitted:
-                    try:
-                        if auth_method == "service_principal":
-                            if not (client_id and client_secret and tenant_id):
-                                st.error("Please provide all Service Principal authentication details")
-                            else:
-                                access_token = get_azure_access_token(client_id, client_secret, tenant_id)
-                                if access_token:
-                                    st.session_state.azure_config = {
-                                        "org_url": org_url,
-                                        "project": project,
-                                        "team": team,
-                                        "access_token": access_token,
-                                        "connected": True
-                                    }
-                                    st.success("Successfully connected to Azure DevOps!")
-                                else:
-                                    st.error("Failed to authenticate with Azure DevOps. Check your credentials.")
-                        elif auth_method == "pat":
-                            if not pat_token:
-                                st.error("Please provide a Personal Access Token")
-                            else:
-                                # For PAT, we just store it as the access token
-                                st.session_state.azure_config = {
-                                    "org_url": org_url,
-                                    "project": project,
-                                    "team": team,
-                                    "access_token": pat_token,
-                                    "connected": True
-                                }
-                                st.success("Successfully connected to Azure DevOps with PAT!")
-                    except Exception as e:
-                        st.error(f"Connection error: {str(e)}")
-
-        # Import & Export functionality
-        if st.session_state.azure_config["connected"]:
-            st.subheader("Azure DevOps Actions")
-
-            azure_col1, azure_col2 = st.columns(2)
-
-            with azure_col1:
-                # Import tasks from Azure DevOps
-                st.markdown("### Import Tasks")
-
-                if st.button("Import Tasks from Current Iteration"):
-                    with st.spinner("Fetching tasks from Azure DevOps..."):
-                        try:
-                            df_tasks = get_azure_devops_tasks(
-                                st.session_state.azure_config["org_url"],
-                                st.session_state.azure_config["project"],
-                                st.session_state.azure_config["team"],
-                                st.session_state.azure_config["access_token"]
-                            )
-
-                            if df_tasks is not None and not df_tasks.empty:
-                                st.session_state.df_tasks = df_tasks
-                                st.success(f"Successfully imported {len(df_tasks)} tasks from Azure DevOps!")
-                            else:
-                                st.error("No tasks found or failed to import.")
-                        except Exception as e:
-                            st.error(f"Import error: {str(e)}")
-
-            with azure_col2:
-                # Update task assignments in Azure DevOps
-                st.markdown("### Update Task Assignments")
-
-                if not st.session_state.results:
-                    st.info("Please run sprint planning in the 'Sprint & Task Assignment' tab first.")
-                else:
-                    if st.button("Update Task Assignments in Azure DevOps"):
-                        with st.spinner("Updating tasks in Azure DevOps..."):
-                            try:
-                                # Prepare updates for Azure DevOps
-                                updates = []
-
-                                for task_id, assignment in st.session_state.results["assignments"].items():
-                                    updates.append({
-                                        "id": task_id,
-                                        "fields": {
-                                            "System.AssignedTo": assignment["assigned_to"]
-                                            # Other fields can be updated here as needed
-                                        }
-                                    })
-
-                                if updates:
-                                    results = update_azure_devops_tasks(
-                                        st.session_state.azure_config["org_url"],
-                                        st.session_state.azure_config["project"],
-                                        st.session_state.azure_config["access_token"],
-                                        updates
-                                    )
-
-                                    st.success(f"Successfully updated {len(updates)} tasks in Azure DevOps!")
-                                else:
-                                    st.warning("No task assignments to update.")
-                            except Exception as e:
-                                st.error(f"Update error: {str(e)}")
-        else:
-            st.info("Connect to Azure DevOps to import tasks or update assignments")
-    
-
-def render_retrospective_analysis():
-    
-
-    st.markdown("""
-    <div class="animated-header">
-        <div class="floating-container"></div>
-        <h1 style="color: white; font-size: 48px; margin-bottom: 15px; text-align: center;">RetroSpective Analysis Tool</h1>
-        <p style="color: white; font-size: 18px; text-align: center; animation: fadeInUp 1s 0.5s forwards; opacity: 0; line-height: 1.6;">
-        A Tool for Analysis of feedback from Team Retrospectives   
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown("Upload multiple retrospective CSV files to analyze and compare feedback across team retrospectives.")
-
-    # Sidebar for file upload and filtering controls
-    with st.sidebar:
-        st.header("Controls")
-
-        uploaded_files = st.file_uploader(
-            "Upload Retrospective CSV Files",
-            type=["csv"],
-            accept_multiple_files=True,
-            help="Upload one or more CSV files containing retrospective data",
-            key="retro_upload"
-        )
-
-        st.subheader("Filter Settings")
-        min_votes = st.slider("Minimum Votes", 0, 100, 1, key="retro_min_votes")
-        max_votes = st.slider("Maximum Votes", min_votes, 100, 50, key="retro_max_votes")
-
-        if uploaded_files:
-            st.info(f"Selected {len(uploaded_files)} file(s)")
-        else:
-            st.warning("Please upload at least one CSV file")
-
-    # Main content area
-    if not uploaded_files:
-        st.info("👈 Please upload retrospective CSV files using the sidebar to begin analysis")
-
-        # Show example of expected format
-        st.subheader("Expected CSV Format")
-        st.markdown(""" 
-        Your CSV files should include columns for feedback description and votes, with format like:
-        ```
-        Type,Description,Votes
+                    "Assigned ToType,Description,Votes
         Went Well,The team was collaborative,5
         Needs Improvement,Documentation is lacking,3
         ```
@@ -2049,9 +1476,8 @@ def render_retrospective_analysis():
         The tool will also recognize associated tasks when formatted as:
         ```
         Feedback Description,Work Item Title,Work Item Type,Work Item Id,
-        Documentation is lacking,Improve Docs,Task,12345
-        ```
-        """)
+        Documentation is lacking,Improve Docs,Task,12345```
+        """, unsafe_allow_html=True)
 
     else:
         # Process the uploaded files when the analyze button is clicked
@@ -2162,7 +1588,7 @@ def render_retrospective_analysis():
                             file_name="retrospective_analysis.md",
                             mime="text/markdown"
                         )
-                        
+
                         # Add AI insights for retrospective analysis
                         ai_insights({"feedback_results": feedback_results, "metrics": {
                             "total_items": len(results_df),
@@ -2170,7 +1596,7 @@ def render_retrospective_analysis():
                             "task_linked_items": with_tasks
                         }})
 
-    
+
 
 def smart_task_assignment():
     st.markdown("<div class='animated-header'><h2>Smart Task Assignment</h2></div>", unsafe_allow_html=True)
