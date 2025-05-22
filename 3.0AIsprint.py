@@ -1468,16 +1468,14 @@ def render_sprint_task_planner():
                         help="Estimated work hours",
                         format="%.1f",
                     ),
-                    "Assigned ToType,Description,Votes
-        Went Well,The team was collaborative,5
-        Needs Improvement,Documentation is lacking,3
-        ```
-
-        The tool will also recognize associated tasks when formatted as:
-        ```
-        Feedback Description,Work Item Title,Work Item Type,Work Item Id,
-        Documentation is lacking,Improve Docs,Task,12345```
-        """, unsafe_allow_html=True)
+                    "Assigned To": st.column_config.Column(
+                        "Assigned To",
+                        help="Team member assigned to the task",
+                        width="medium",
+                    ),
+                },
+                use_container_width=True
+            )
 
     else:
         # Process the uploaded files when the analyze button is clicked
