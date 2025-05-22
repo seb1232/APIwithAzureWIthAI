@@ -818,11 +818,15 @@ def add_ai_tab(tab_id):
         st.header("📊 AI Suggestions & Insights")
         st.markdown("Powered by OpenRouter + Claude or GPT-4")
 
-        for msg in st.session_state.ai_messages:
+        # Use unique session state key for each tab's messages
+        if f"ai_messages_{tab_id}" not in st.session_state:
+            st.session_state[f"ai_messages_{tab_id}"] = []
+
+        for msg in st.session_state[f"ai_messages_{tab_id}"]:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key=f"ai_api_key_{tab_id}")
+        api_key = st.text_input("🔑 OpenRouter API Key", type="password", key=f"openrouter_key_{tab_id}")
 
         # Rest of your AI tab logic here
         df = st.session_state.get("df_tasks")
