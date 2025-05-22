@@ -2283,11 +2283,34 @@ def render_retrospective_analysis():
 
         df = create_dataframe_from_results(st.session_state.retro_feedback)
 
-        # Build context from feedback
-        context = "You are a helpful assistant summarizing retrospective feedback:\\n"
+        # Build comprehensive context from feedback and analysis
+        context = "You are an expert AI assistant analyzing retrospective feedback and CSV data.\n\n"
+        
+        # Add statistical summary
+        total_votes = df['Votes'].sum()
+        avg_votes = df['Votes'].mean()
+        context += f"Statistical Summary:\n"
+        context += f"- Total feedback items: {len(df)}\n"
+        context += f"- Total votes: {total_votes}\n"
+        context += f"- Average votes per item: {avg_votes:.1f}\n"
+        
+        # Analyze high-priority items
+        high_votes = df[df['Votes'] >= df['Votes'].quantile(0.75)]
+        context += f"\nHigh Priority Items (top 25% by votes):\n"
+        for _, row in high_votes.iterrows():
+            task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
+            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\n"
+        
+        # Analyze task associations
+        with_tasks = df['Task ID'].apply(lambda x: x != "None").sum()
+        context += f"\nTask Association Analysis:\n"
+        context += f"- {with_tasks} items ({(with_tasks/len(df)*100):.1f}%) have associated tasks\n"
+        
+        # Add full feedback list
+        context += f"\nAll Feedback Items:\n"
         for _, row in df.iterrows():
             task_info = f" [Task ID: {row['Task ID']}]" if row['Task ID'] != "None" else ""
-            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\\n"
+            context += f"- {row['Feedback']} ({row['Votes']} votes){task_info}\n"
 
         prompt = st.chat_input("Ask me anything about this retrospective...")
 
@@ -2526,11 +2549,33 @@ def smart_task_assignment():
             st.info("Please add developers and their expertise first.")
             st.stop()
 
-        # Build context from developer expertise
-        context = "You are a helpful assistant for task assignment. Current developer expertise:\\n"
+        # Build comprehensive context from expertise and task analysis
+        context = "You are an expert AI assistant for task assignment and workload analysis.\n\n"
+        
+        # Developer expertise and capacity analysis
+        total_hours = sum(st.session_state.developer_hours.values())
+        context += f"Team Capacity Analysis:\n"
+        context += f"- Total team capacity: {total_hours} hours\n"
+        context += f"- Number of developers: {len(st.session_state.developer_expertise)}\n\n"
+        
+        context += f"Developer Expertise:\n"
         for dev, expertise in st.session_state.developer_expertise.items():
             hours = st.session_state.developer_hours.get(dev, 0)
-            context += f"- {dev}: {', '.join(expertise)} ({hours} hours available)\\n"
+            percent = (hours/total_hours * 100) if total_hours > 0 else 0
+            context += f"- {dev}: {', '.join(expertise)} ({hours} hours, {percent:.1f}% of total capacity)\n"
+        
+        if df_tasks is not None:
+            # Task analysis
+            total_tasks = len(df_tasks)
+            total_estimates = df_tasks['Original Estimates'].sum() if 'Original Estimates' in df_tasks.columns else 0
+            priorities = df_tasks['Priority'].value_counts() if 'Priority' in df_tasks.columns else {}
+            
+            context += f"\nTask Analysis:\n"
+            context += f"- Total tasks: {total_tasks}\n"
+            context += f"- Total estimated hours: {total_estimates:.1f}\n"
+            context += f"- Priority distribution:\n"
+            for priority, count in priorities.items():
+                context += f"  * {priority}: {count} tasks ({count/total_tasks*100:.1f}%)\n"
 
         if df_tasks is not None:
             context += "\\nCurrent tasks:\\n"
