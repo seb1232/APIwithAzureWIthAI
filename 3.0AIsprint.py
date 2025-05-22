@@ -816,9 +816,29 @@ def render_home():
             st.rerun()
 
 def add_ai_tab(tab_id):
-    ai_tab = st.tabs([f"AI Suggestions {tab_id}"])[0]
-    with ai_tab:
-        st.header("📊 AI Suggestions & Insights")
+    st.markdown("""
+    <style>
+    .ai-tab-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #0e1117;
+        border-top: 1px solid #333;
+        padding: 20px;
+        z-index: 1000;
+    }
+    .main .block-container {
+        padding-bottom: 200px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f"""
+    <div class='ai-tab-container'>
+        <h3>📊 AI Suggestions & Insights</h3>
+    </div>
+    """, unsafe_allow_html=True)
         st.markdown("Powered by OpenRouter + Claude or GPT-4")
 
         # Use unique session state key for each tab's messages
@@ -2305,11 +2325,7 @@ def render_retrospective_analysis():
     add_ai_tab("retro_analysis")
 
 def smart_task_assignment():
-    # Add AI tab at the top
-    add_ai_tab("smart_assignment")
-    
     st.markdown("<div class='animated-header'><h2>Smart Task Assignment</h2></div>", unsafe_allow_html=True)
-    add_ai_tab("smart_task_assignment")
 
     # Developer expertise management section
     st.subheader("Developer Expertise Management")
