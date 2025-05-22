@@ -823,19 +823,28 @@ def add_ai_tab(tab_id):
 
         # Use unique session state key for each tab's messages
         if f"ai_messages_{tab_id}" not in st.session_state:
-            st.session_state[f"ai_messages_{tab_id}"] = []
+            st.session_state[f"ai_messages_{tab_id}"] = [
+                {"role": "assistant", "content": "Hi! I'm your sprint planning assistant. How can I help?"}
+            ]
 
         for msg in st.session_state[f"ai_messages_{tab_id}"]:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
         api_key = st.text_input("🔑 OpenRouter API Key", type="password", key=f"openrouter_key_{tab_id}")
+        
+        # Add chat input
+        prompt = st.chat_input("Ask about your sprint plan...")
+        
+        if prompt:
+            st.session_state[f"ai_messages_{tab_id}"].append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-        # Rest of your AI tab logic here
-        df = st.session_state.get("df_tasks")
-        if df is not None and not df.empty:
-            # Your existing AI processing logic
-            pass
+            with st.chat_message("assistant"):
+                response = "Thank you for your question. I'm analyzing your request and will provide guidance about sprint planning and task management."
+                st.session_state[f"ai_messages_{tab_id}"].append({"role": "assistant", "content": response})
+                st.markdown(response)
 
 def render_sprint_task_planner():
     # Apple-style animated header
