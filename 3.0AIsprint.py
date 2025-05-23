@@ -794,7 +794,7 @@ def render_home():
         """, unsafe_allow_html=True)
 
         if st.button("🎯 Open Expertise Assignment 🎯", key="expertise-btn"):
-            st.session_state.current_app = "expertise_assignment"
+            st.session_state.current_app = "expertise"
             st.rerun()
 
     with col2:
