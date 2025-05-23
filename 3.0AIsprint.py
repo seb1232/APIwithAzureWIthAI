@@ -13,7 +13,7 @@ import io
 
 # Page Config
 st.set_page_config(
-    page_title="Agile Project Management Suite",
+    page_title="Scrum-Copilot",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -746,8 +746,8 @@ def render_home():
         """
         <div class="animated-header">
             <div class="floating-container"></div>
-            <h1 class="typing-effect" style="color: white; font-size: 48px; margin-bottom: 15px; text-align: center;">Agile Project Management</h1>
-            <h3 style="color: white; font-size: 24px; text-align: center; animation: fadeInUp 1s 0.5s forwards; opacity: 0;">Sprint Planning + Retrospective Analysis</h3>
+            <h1 class="typing-effect" style="color: white; font-size: 48px; margin-bottom: 15px; text-align: center;">Scrum-Copilot</h1>
+            <h3 style="color: white; font-size: 24px; text-align: center; animation: fadeInUp 1s 0.5s forwards; opacity: 0;">Sprint Planning + Retrospective Analysis + Expetise Based Assignment</h3>
         </div>
         """, 
         unsafe_allow_html=True
