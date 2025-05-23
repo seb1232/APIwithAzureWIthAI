@@ -762,24 +762,9 @@ def render_home():
         <div class="floating-element" style="width: 120px; height: 120px; left: 25%; top: 80%; background-color: rgba(244, 67, 54, 0.1); filter: blur(35px);"></div>
     </div>
     """, unsafe_allow_html=True)
-    st.markdown("""
-        <div class="apple-card" style='background-color: rgba(30, 136, 229, 0.8); color: white; padding: 20px; border-radius: 15px; height: auto; backdrop-filter: blur(10px);'>
-            <h3 style="font-size: 24px; margin-bottom: 15px;">Sprint Task Planner</h3>
-            <p style="font-size: 16px; margin-bottom: 15px;">Plan and distribute tasks across sprints to optimize team capacity</p>
-            <ul class="staggered-fade">
-                <li style="margin-bottom: 8px;">Fair distribution of tasks based on priority</li>
-                <li style="margin-bottom: 8px;">Optimal capacity utilization</li>
-                <li style="margin-bottom: 8px;">Azure DevOps integration</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("✨ Open Sprint Task Planner ✨", key="sprint-planner-btn"):
-            st.session_state.current_app = "sprint_planner"
-            st.rerun()
 
 
-    col1, col2 = st.columns(2)
+    col1, col2,col3 = st.columns(3)
 
     with col1:
         st.markdown("""
