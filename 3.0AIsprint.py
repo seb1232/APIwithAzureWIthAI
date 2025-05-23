@@ -799,21 +799,21 @@ def render_home():
         if st.button("✨ Open Retrospective Analysis ✨", key="retro-analysis-btn"):
             st.session_state.current_app = "retro_analysis"
             st.rerun()
-      with col3:
+    with col2:
         st.markdown("""
-        <div class="apple-card" style='background-color: rgba(30, 136, 229, 0.8); color: white; padding: 20px; border-radius: 15px; height: auto; backdrop-filter: blur(10px);'>
-            <h3 style="font-size: 24px; margin-bottom: 15px;">Sprint Task Planner</h3>
-            <p style="font-size: 16px; margin-bottom: 15px;">Plan and distribute tasks across sprints to optimize team capacity</p>
+        <div class="apple-card" style='background-color: rgba(76, 175, 80, 0.8); color: white; padding: 20px; border-radius: 15px; height: auto; backdrop-filter: blur(10px);'>
+            <h3 style="font-size: 24px; margin-bottom: 15px;">Retrospective Analysis Tool</h3>
+            <p style="font-size: 16px; margin-bottom: 15px;">Consolidate and analyze feedback from team retrospectives</p>
             <ul class="staggered-fade">
-                <li style="margin-bottom: 8px;">Fair distribution of tasks based on priority</li>
-                <li style="margin-bottom: 8px;">Optimal capacity utilization</li>
-                <li style="margin-bottom: 8px;">Azure DevOps integration</li>
+                <li style="margin-bottom: 8px;">Process multiple retrospective files</li>
+                <li style="margin-bottom: 8px;">Visualize feedback with vote counts</li>
+                <li style="margin-bottom: 8px;">AI-powered insights</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("✨ Open Sprint Task Planner ✨", key="sprint-planner-btn"):
-            st.session_state.current_app = "sprint_planner"
+        if st.button("✨ Open Retrospective Analysis ✨", key="retro-analysis-btn"):
+            st.session_state.current_app = "retro_analysis"
             st.rerun()
 
 def render_sprint_task_planner():
