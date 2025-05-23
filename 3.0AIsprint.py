@@ -763,8 +763,7 @@ def render_home():
     </div>
     """, unsafe_allow_html=True)
 
-
-    col1, col2,col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("""
@@ -799,7 +798,7 @@ def render_home():
         if st.button("✨ Open Retrospective Analysis ✨", key="retro-analysis-btn"):
             st.session_state.current_app = "retro_analysis"
             st.rerun()
-  
+
 def render_sprint_task_planner():
     # Apple-style animated header
     st.markdown("""
